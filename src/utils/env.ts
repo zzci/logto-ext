@@ -1,0 +1,30 @@
+import logger from "./logger";
+
+interface EnvConfig {
+  LOGTO_ENDPOINT: string;
+  LOGTO_M2M_APP_ID: string;
+  LOGTO_M2M_APP_SECRET: string;
+  LOGTO_WEBHOOK_SECRET?: string;
+  PORT: number;
+}
+
+function getEnvConfig(): EnvConfig {
+  const required = ["LOGTO_ENDPOINT", "LOGTO_M2M_APP_ID", "LOGTO_M2M_APP_SECRET"];
+  const missing = required.filter((key) => !process.env[key]);
+
+  if (missing.length > 0) {
+    logger.error(`Missing required environment variables: ${missing.join(", ")}`);
+    process.exit(1);
+  }
+
+  return {
+    LOGTO_ENDPOINT: process.env.LOGTO_ENDPOINT!,
+    LOGTO_M2M_APP_ID: process.env.LOGTO_M2M_APP_ID!,
+    LOGTO_M2M_APP_SECRET: process.env.LOGTO_M2M_APP_SECRET!,
+    LOGTO_WEBHOOK_SECRET: process.env.LOGTO_WEBHOOK_SECRET,
+    PORT: parseInt(process.env.PORT || "3000", 10),
+  };
+}
+
+export const env = getEnvConfig();
+export default env;

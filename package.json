@@ -1,0 +1,17 @@
+{
+  "name": "logto-auth-service",
+  "version": "1.0.0",
+  "description": "Logto authentication service using Management API",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch run src/index.ts"
+  },
+  "dependencies": {
+    "consola": "^3.4.2",
+    "hono": "^4.11.7"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
