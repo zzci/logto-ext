@@ -6,7 +6,7 @@ import { requestLogger } from "./middleware/requestLogger";
 import authRoutes from "./routes/auth";
 import webhookRoutes from "./routes/webhook";
 
-const app = new Hono();
+const app = new Hono().basePath("/ext");
 
 // Global middleware
 app.use("*", cors());
