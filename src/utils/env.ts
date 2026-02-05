@@ -5,6 +5,7 @@ interface EnvConfig {
   LOGTO_M2M_APP_ID: string;
   LOGTO_M2M_APP_SECRET: string;
   LOGTO_WEBHOOK_SECRET?: string;
+  API_KEY?: string;
   PORT: number;
 }
 
@@ -22,6 +23,7 @@ function getEnvConfig(): EnvConfig {
     LOGTO_M2M_APP_ID: process.env.LOGTO_M2M_APP_ID!,
     LOGTO_M2M_APP_SECRET: process.env.LOGTO_M2M_APP_SECRET!,
     LOGTO_WEBHOOK_SECRET: process.env.LOGTO_WEBHOOK_SECRET,
+    API_KEY: process.env.API_KEY,
     PORT: parseInt(process.env.PORT || "3000", 10),
   };
 }
