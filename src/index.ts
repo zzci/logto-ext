@@ -5,19 +5,29 @@ import env from "./utils/env";
 import { requestLogger } from "./middleware/requestLogger";
 import authRoutes from "./routes/auth";
 import webhookRoutes from "./routes/webhook";
+import userRoutes from "./routes/user";
 
-const app = new Hono().basePath("/ext");
+// Main app
+const app = new Hono();
 
-// Global middleware
-app.use("*", cors());
-app.use("*", requestLogger);
+// /ext basePath - Extension API
+const extApp = new Hono().basePath("/ext");
+extApp.use("*", cors());
+extApp.use("*", requestLogger);
+extApp.get("/health", (c) => c.json({ status: "ok" }));
+extApp.route("/auth", authRoutes);
+extApp.route("/webhook", webhookRoutes);
 
-// Health check
-app.get("/health", (c) => c.json({ status: "ok" }));
+// /user basePath - User Center
+const userApp = new Hono().basePath("/user");
+userApp.use("*", cors());
+userApp.use("*", requestLogger);
+userApp.get("/health", (c) => c.json({ status: "ok" }));
+userApp.route("/", userRoutes);
 
-// Mount routes
-app.route("/auth", authRoutes);
-app.route("/webhook", webhookRoutes);
+// Mount both apps
+app.route("/", extApp);
+app.route("/", userApp);
 
 async function run() {
   const server = Bun.serve({
