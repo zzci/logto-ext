@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LogtoProvider, useLogto } from '@logto/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
@@ -28,6 +29,7 @@ function getTabFromHash(): TabId {
 }
 
 function AccountApp() {
+  const { t } = useTranslation();
   const { isAuthenticated, isLoading, signIn, signOut } = useLogto();
   const [activeTab, setActiveTab] = useState<TabId>(getTabFromHash);
 
@@ -57,10 +59,22 @@ function AccountApp() {
     return <Spinner />;
   }
 
-  // Auto-redirect: show spinner and trigger signIn via user-interaction-equivalent click
+  // Only show login when never authenticated, not during token refresh
   if (!isAuthenticated && !wasAuthenticated.current) {
     const appConfig = getAppConfig();
-    return <AutoSignIn signIn={() => signIn(appConfig.baseUrl + '/user/callback')} />;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">{t('auth.loginRequired')}</p>
+          <button
+            onClick={() => signIn(appConfig.baseUrl + '/user/callback')}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            {t('auth.login')}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const handleSignOut = () => {
@@ -77,24 +91,6 @@ function AccountApp() {
       <AccountCenter activeTab={activeTab} onSignOut={handleSignOut} />
     </AccountLayout>
   );
-}
-
-// Separate component to safely trigger signIn exactly once.
-// Isolating this avoids interfering with AccountApp's hook order
-// and Logto SDK internal state.
-let signInTriggered = false;
-function AutoSignIn({ signIn }: { signIn: () => Promise<void> }) {
-  useEffect(() => {
-    if (!signInTriggered) {
-      signInTriggered = true;
-      void signIn().catch(() => {
-        signInTriggered = false;
-      });
-    }
-    return () => {};
-  }, [signIn]);
-
-  return <Spinner />;
 }
 
 function AppRoutes() {
