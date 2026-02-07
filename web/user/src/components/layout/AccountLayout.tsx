@@ -26,7 +26,10 @@ export function AccountLayout({ activeTab, onTabChange, children }: AccountLayou
       <header className="hidden sm:block sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-2xl mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-semibold text-gray-900">{t('layout.accountCenter')}</h1>
+            <div className="flex items-center gap-2.5">
+              <img src="https://gid.io/logo.png" alt="Logo" className="h-7 w-auto" />
+              <h1 className="text-lg font-semibold text-gray-900">{t('layout.accountCenter')}</h1>
+            </div>
             <nav role="tablist" aria-label={t('layout.accountSettings')} className="flex gap-1 p-1 bg-gray-100 rounded-lg">
               {tabDefs.map((tab) => (
                 <button
@@ -54,7 +57,8 @@ export function AccountLayout({ activeTab, onTabChange, children }: AccountLayou
 
       {/* Mobile header */}
       <header className="sm:hidden sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="px-4 py-3 text-center">
+        <div className="px-4 py-3 flex items-center justify-center gap-2">
+          <img src="https://gid.io/logo.png" alt="Logo" className="h-6 w-auto" />
           <h1 className="text-lg font-semibold text-gray-900">
             {tabDefs.find((td) => td.id === activeTab) ? t(tabDefs.find((td) => td.id === activeTab)!.labelKey) : t('layout.accountCenter')}
           </h1>
