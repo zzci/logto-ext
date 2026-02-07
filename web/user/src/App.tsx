@@ -27,6 +27,9 @@ function getTabFromHash(): TabId {
   return validTabs.includes(hash as TabId) ? (hash as TabId) : 'profile';
 }
 
+// Module-level flag to prevent duplicate signIn calls (survives StrictMode remount)
+let signInTriggered = false;
+
 function AccountApp() {
   const { isAuthenticated, isLoading, signIn, signOut } = useLogto();
   const [activeTab, setActiveTab] = useState<TabId>(getTabFromHash);
@@ -50,16 +53,16 @@ function AccountApp() {
   const wasAuthenticated = useRef(false);
   if (isAuthenticated) {
     wasAuthenticated.current = true;
+    signInTriggered = false;
   }
 
   // Auto-redirect to login when not authenticated
-  const signingIn = useRef(false);
   useEffect(() => {
-    if (!isAuthenticated && !wasAuthenticated.current && !isLoading && !signingIn.current) {
-      signingIn.current = true;
+    if (!isAuthenticated && !wasAuthenticated.current && !isLoading && !signInTriggered) {
+      signInTriggered = true;
       const appConfig = getAppConfig();
       void signIn(appConfig.baseUrl + '/user/callback').catch((err) => {
-        signingIn.current = false;
+        signInTriggered = false;
         console.error('[AccountApp] signIn redirect failed:', err);
       });
     }
