@@ -9,3 +9,4 @@ Dockerfile
 .dockerignore
 .github
 test-*.ts
+dist

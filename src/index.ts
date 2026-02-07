@@ -1,12 +1,14 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { serveStatic } from "hono/bun";
+import { readFileSync, existsSync } from "fs";
+import { resolve } from "path";
 import logger from "./utils/logger";
 import env from "./utils/env";
 import { requestLogger } from "./middleware/requestLogger";
 import { apiKeyAuth } from "./middleware/apiKey";
 import authRoutes from "./routes/auth";
 import webhookRoutes from "./routes/webhook";
-import userRoutes from "./routes/user";
 
 // Main app
 const app = new Hono();
@@ -22,16 +24,33 @@ extApp.use("/webhook/*", apiKeyAuth);
 extApp.route("/auth", authRoutes);
 extApp.route("/webhook", webhookRoutes);
 
-// /user basePath - User Center
-const userApp = new Hono().basePath("/user");
-userApp.use("*", cors());
-userApp.use("*", requestLogger);
-userApp.get("/health", (c) => c.json({ status: "ok" }));
-userApp.route("/", userRoutes);
-
-// Mount both apps
+// Mount ext API
 app.route("/", extApp);
-app.route("/", userApp);
+
+// --- Serve User Account SPA at /user/* ---
+const userDistPath = resolve(import.meta.dir, "../dist/user");
+const userIndexPath = resolve(userDistPath, "index.html");
+
+if (existsSync(userIndexPath)) {
+  const userIndexHtml = readFileSync(userIndexPath, "utf-8");
+
+  // Serve static assets (JS, CSS, images, etc.)
+  app.use(
+    "/user/*",
+    serveStatic({
+      root: "./dist/user",
+      rewriteRequestPath: (path) => path.replace(/^\/user/, ""),
+    })
+  );
+
+  // SPA fallback: return index.html for any /user path
+  app.get("/user", (c) => c.html(userIndexHtml));
+  app.get("/user/*", (c) => c.html(userIndexHtml));
+
+  logger.info("User account SPA enabled at /user/");
+} else {
+  logger.warn("User SPA not found at dist/user/ - run 'bun run build:web' first");
+}
 
 async function run() {
   const server = Bun.serve({

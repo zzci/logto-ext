@@ -1,17 +1,40 @@
 {
-  "name": "logto-auth-service",
+  "name": "logto-ext",
   "version": "1.0.0",
-  "description": "Logto authentication service using Management API",
+  "private": true,
+  "description": "Logto extension service with user account center",
   "type": "module",
   "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"bun --watch run src/index.ts\" \"vite dev --config vite.config.ts\"",
+    "dev:api": "bun --watch run src/index.ts",
+    "dev:web": "vite dev --config vite.config.ts",
+    "build:web": "vite build --config vite.config.ts",
+    "build": "bun run build:web",
     "start": "bun run src/index.ts",
-    "dev": "bun --watch run src/index.ts"
+    "preview": "vite preview --config vite.config.ts"
   },
   "dependencies": {
     "consola": "^3.4.2",
     "hono": "^4.11.7"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@logto/react": "^4.0.12",
+    "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/react-query": "^5.90.20",
+    "@types/bun": "latest",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "clsx": "^2.1.1",
+    "concurrently": "^9.0.0",
+    "lucide-react": "^0.563.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.13.0",
+    "tailwind-merge": "^3.4.0",
+    "tailwindcss": "^4.1.18",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.4"
   }
 }

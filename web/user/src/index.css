@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  --color-primary-950: #172554;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+  margin: 0;
+  min-height: 100vh;
+}
+
+* {
+  @apply border-gray-200;
+}
+
+/* Embedded mode styles */
+.embed-container {
+  @apply min-h-0;
+}
+
+.embed-container body,
+body:has(.embed-container) {
+  @apply bg-transparent min-h-0;
+}
+
+/* Seamless iframe embedding */
+html:has(.embed-container),
+body:has(.embed-container) {
+  background: transparent !important;
+  min-height: auto !important;
+}
+
+/* Dark mode support for embedded */
+@media (prefers-color-scheme: dark) {
+  .embed-container[data-theme="auto"] {
+    @apply bg-gray-900 text-gray-100;
+  }
+
+  .embed-container[data-theme="auto"] .bg-white {
+    @apply bg-gray-800;
+  }
+
+  .embed-container[data-theme="auto"] .bg-gray-50 {
+    @apply bg-gray-900;
+  }
+
+  .embed-container[data-theme="auto"] .text-gray-900 {
+    @apply text-gray-100;
+  }
+
+  .embed-container[data-theme="auto"] .text-gray-600 {
+    @apply text-gray-400;
+  }
+
+  .embed-container[data-theme="auto"] .border-gray-200 {
+    @apply border-gray-700;
+  }
+}
+
+/* Forced dark mode */
+.embed-container[data-theme="dark"] {
+  @apply bg-gray-900 text-gray-100;
+}
+
+.embed-container[data-theme="dark"] .bg-white {
+  @apply bg-gray-800;
+}
+
+.embed-container[data-theme="dark"] .bg-gray-50 {
+  @apply bg-gray-900;
+}
+
+.embed-container[data-theme="dark"] .text-gray-900 {
+  @apply text-gray-100;
+}
+
+.embed-container[data-theme="dark"] .text-gray-600 {
+  @apply text-gray-400;
+}
+
+.embed-container[data-theme="dark"] .border-gray-200 {
+  @apply border-gray-700;
+}
