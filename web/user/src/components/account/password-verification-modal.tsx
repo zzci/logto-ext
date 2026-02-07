@@ -35,7 +35,7 @@ export function PasswordVerificationModal() {
           autoFocus
         />
 
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="outline" onClick={cancel}>
             {t('common.cancel')}
           </Button>
