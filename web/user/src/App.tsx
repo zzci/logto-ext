@@ -27,9 +27,6 @@ function getTabFromHash(): TabId {
   return validTabs.includes(hash as TabId) ? (hash as TabId) : 'profile';
 }
 
-// Module-level flag to prevent duplicate signIn calls (survives StrictMode remount)
-let signInTriggered = false;
-
 function AccountApp() {
   const { isAuthenticated, isLoading, signIn, signOut } = useLogto();
   const [activeTab, setActiveTab] = useState<TabId>(getTabFromHash);
@@ -53,24 +50,17 @@ function AccountApp() {
   const wasAuthenticated = useRef(false);
   if (isAuthenticated) {
     wasAuthenticated.current = true;
-    signInTriggered = false;
   }
 
-  // Auto-redirect to login when not authenticated
-  useEffect(() => {
-    if (!isAuthenticated && !wasAuthenticated.current && !isLoading && !signInTriggered) {
-      signInTriggered = true;
-      const appConfig = getAppConfig();
-      void signIn(appConfig.baseUrl + '/user/callback').catch((err) => {
-        signInTriggered = false;
-        console.error('[AccountApp] signIn redirect failed:', err);
-      });
-    }
-  }, [isAuthenticated, isLoading, signIn]);
-
-  // Show spinner during initial load or while redirecting to login
-  if ((isLoading || !isAuthenticated) && !wasAuthenticated.current) {
+  // Only show loading spinner on initial load, not during token refresh
+  if (isLoading && !wasAuthenticated.current) {
     return <Spinner />;
+  }
+
+  // Auto-redirect: show spinner and trigger signIn via user-interaction-equivalent click
+  if (!isAuthenticated && !wasAuthenticated.current) {
+    const appConfig = getAppConfig();
+    return <AutoSignIn signIn={() => signIn(appConfig.baseUrl + '/user/callback')} />;
   }
 
   const handleSignOut = () => {
@@ -87,6 +77,24 @@ function AccountApp() {
       <AccountCenter activeTab={activeTab} onSignOut={handleSignOut} />
     </AccountLayout>
   );
+}
+
+// Separate component to safely trigger signIn exactly once.
+// Isolating this avoids interfering with AccountApp's hook order
+// and Logto SDK internal state.
+let signInTriggered = false;
+function AutoSignIn({ signIn }: { signIn: () => Promise<void> }) {
+  useEffect(() => {
+    if (!signInTriggered) {
+      signInTriggered = true;
+      void signIn().catch(() => {
+        signInTriggered = false;
+      });
+    }
+    return () => {};
+  }, [signIn]);
+
+  return <Spinner />;
 }
 
 function AppRoutes() {
