@@ -56,7 +56,9 @@ function AccountApp() {
   useEffect(() => {
     if (!isAuthenticated && !wasAuthenticated.current && !isLoading) {
       const appConfig = getAppConfig();
-      signIn(appConfig.baseUrl + '/user/callback');
+      void signIn(appConfig.baseUrl + '/user/callback').catch((err) => {
+        console.error('[AccountApp] signIn redirect failed:', err);
+      });
     }
   }, [isAuthenticated, isLoading, signIn]);
 
