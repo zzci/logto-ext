@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { LogtoProvider, useLogto } from '@logto/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
@@ -29,7 +28,6 @@ function getTabFromHash(): TabId {
 }
 
 function AccountApp() {
-  const { t } = useTranslation();
   const { isAuthenticated, isLoading, signIn, signOut } = useLogto();
   const [activeTab, setActiveTab] = useState<TabId>(getTabFromHash);
 
@@ -59,22 +57,10 @@ function AccountApp() {
     return <Spinner />;
   }
 
-  // Only show login when never authenticated, not during token refresh
+  // Auto-redirect to login when not authenticated
   if (!isAuthenticated && !wasAuthenticated.current) {
     const appConfig = getAppConfig();
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">{t('auth.loginRequired')}</p>
-          <button
-            onClick={() => signIn(appConfig.baseUrl + '/user/callback')}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-          >
-            {t('auth.login')}
-          </button>
-        </div>
-      </div>
-    );
+    return <RedirectToSignIn signIn={() => signIn(appConfig.baseUrl + '/user/callback')} />;
   }
 
   const handleSignOut = () => {
@@ -91,6 +77,23 @@ function AccountApp() {
       <AccountCenter activeTab={activeTab} onSignOut={handleSignOut} />
     </AccountLayout>
   );
+}
+
+/**
+ * Triggers signIn redirect exactly once, showing a spinner while redirecting.
+ * Uses a module-level flag to survive React StrictMode's double-mount cycle.
+ */
+let redirecting = false;
+function RedirectToSignIn({ signIn }: { signIn: () => Promise<void> }) {
+  const called = useRef(false);
+  if (!called.current && !redirecting) {
+    called.current = true;
+    redirecting = true;
+    void signIn().catch(() => {
+      redirecting = false;
+    });
+  }
+  return <Spinner />;
 }
 
 function AppRoutes() {
