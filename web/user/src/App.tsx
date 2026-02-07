@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { LogtoProvider, useLogto } from '@logto/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { logtoConfig, appConfig } from '@/lib/config';
+import { getLogtoConfig, getAppConfig } from '@/lib/config';
 import { CallbackPage, SocialCallbackPage } from '@/pages';
 import { AccountLayout } from '@/components/layout';
 import { AccountCenter } from '@/components/account';
@@ -34,6 +34,7 @@ function AccountApp() {
   }
 
   if (!isAuthenticated) {
+    const appConfig = getAppConfig();
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -50,6 +51,7 @@ function AccountApp() {
   }
 
   const handleSignOut = () => {
+    const appConfig = getAppConfig();
     signOut(appConfig.baseUrl + '/user');
   };
 
@@ -76,7 +78,7 @@ function AppRoutes() {
 
 function App() {
   return (
-    <LogtoProvider config={logtoConfig}>
+    <LogtoProvider config={getLogtoConfig()}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter basename="/user">
           <AppRoutes />

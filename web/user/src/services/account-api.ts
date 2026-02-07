@@ -8,13 +8,13 @@ import type {
   TotpSecretResponse,
   BackupCodesResponse,
 } from '@/types';
+import { getConfig } from '@/lib/config';
 
 class AccountApiService {
-  private endpoint: string;
   private getAccessToken: (() => Promise<string>) | null = null;
 
-  constructor() {
-    this.endpoint = import.meta.env.VITE_LOGTO_ENDPOINT;
+  private get endpoint(): string {
+    return getConfig().logtoEndpoint;
   }
 
   setAccessTokenGetter(getter: () => Promise<string>) {

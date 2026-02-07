@@ -5,9 +5,7 @@
   "description": "Logto extension service with user account center",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n api,web -c blue,green \"bun --watch run src/index.ts\" \"vite dev --config vite.config.ts\"",
-    "dev:api": "bun --watch run src/index.ts",
-    "dev:web": "vite dev --config vite.config.ts",
+    "dev": "bunx --bun vite dev --config vite.config.ts",
     "build:web": "vite build --config vite.config.ts",
     "build": "bun run build:web",
     "start": "bun run src/index.ts",
@@ -18,6 +16,7 @@
     "hono": "^4.11.7"
   },
   "devDependencies": {
+    "@hono/vite-dev-server": "^0.25.0",
     "@logto/react": "^4.0.12",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "^5.90.20",
@@ -27,7 +26,6 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "clsx": "^2.1.1",
-    "concurrently": "^9.0.0",
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
