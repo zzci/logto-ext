@@ -6,9 +6,10 @@ import type {
   VerificationResponse,
   MfaVerification,
   TotpSecretResponse,
-  BackupCodesResponse,
+  SocialConnector,
 } from '@/types';
 import { getConfig } from '@/lib/config';
+import i18n from '@/i18n';
 
 class AccountApiService {
   private getAccessToken: (() => Promise<string>) | null = null;
@@ -26,8 +27,6 @@ class AccountApiService {
     options: RequestInit = {},
     verificationRecordId?: string
   ): Promise<T> {
-    console.log('[AccountAPI] request:', path, options.method || 'GET');
-
     if (!this.getAccessToken) {
       throw new Error('Access token getter not configured');
     }
@@ -36,7 +35,7 @@ class AccountApiService {
     try {
       accessToken = await this.getAccessToken();
     } catch (err) {
-      throw new Error('获取访问令牌失败，请重新登录');
+      throw new Error(i18n.t('errors.accessTokenFailed'));
     }
 
     const headers: HeadersInit = {
@@ -47,37 +46,34 @@ class AccountApiService {
 
     if (verificationRecordId) {
       (headers as Record<string, string>)['logto-verification-id'] = verificationRecordId;
-      console.log('[AccountAPI] Adding logto-verification-id header:', verificationRecordId);
     }
 
-    console.log('[AccountAPI] Sending request to:', `${this.endpoint}${path}`);
     const response = await fetch(`${this.endpoint}${path}`, {
       ...options,
       headers,
     });
-    console.log('[AccountAPI] Response status:', response.status);
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       // Handle Logto API error format: { code: "session.invalid_credentials", message: "..." }
       const errorCode = error.code || '';
-      let message = error.message || error.error_description || error.error || `请求失败 (${response.status})`;
+      let message = error.message || error.error_description || error.error || i18n.t('errors.requestFailed', { status: response.status });
 
-      // Translate common Logto error codes to Chinese
+      // Translate common Logto error codes
       if (errorCode === 'session.invalid_credentials' || errorCode.includes('invalid_credentials')) {
-        message = '密码错误';
+        message = i18n.t('errors.wrongPassword');
       } else if (errorCode === 'session.verification_session_not_found') {
-        message = '验证会话已过期，请重新验证';
+        message = i18n.t('errors.verificationExpired');
       } else if (errorCode === 'session.verification_failed') {
-        message = '验证失败，请重试';
+        message = i18n.t('errors.verificationFailed');
       } else if (errorCode.includes('password.rejected')) {
-        message = '密码不符合安全要求';
+        message = i18n.t('errors.passwordRejected');
       } else if (response.status === 401) {
-        message = '认证失败，请重新登录';
+        message = i18n.t('errors.authFailed');
       } else if (response.status === 403) {
-        message = '没有权限执行此操作';
+        message = i18n.t('errors.forbidden');
       } else if (response.status === 422) {
-        message = error.message || '请求数据无效';
+        message = error.message || i18n.t('errors.invalidData');
       }
 
       throw new Error(message);
@@ -111,13 +107,10 @@ class AccountApiService {
 
   // Verification endpoints
   async verifyPassword(password: string): Promise<VerificationResponse> {
-    console.log('[AccountAPI] verifyPassword called');
-    const result = await this.request<VerificationResponse>('/api/verifications/password', {
+    return this.request<VerificationResponse>('/api/verifications/password', {
       method: 'POST',
       body: JSON.stringify({ password }),
     });
-    console.log('[AccountAPI] verifyPassword response:', result);
-    return result;
   }
 
   async sendVerificationCode(
@@ -153,8 +146,7 @@ class AccountApiService {
     data: UpdatePasswordRequest,
     verificationRecordId: string
   ): Promise<void> {
-    console.log('[AccountAPI] updatePassword called with verificationRecordId:', verificationRecordId);
-    const result = await this.request<void>(
+    return this.request<void>(
       '/api/my-account/password',
       {
         method: 'POST',
@@ -162,19 +154,14 @@ class AccountApiService {
       },
       verificationRecordId
     );
-    console.log('[AccountAPI] updatePassword completed');
-    return result;
   }
 
   // Set password for users who don't have one (e.g., social login users)
   async setPassword(data: UpdatePasswordRequest): Promise<void> {
-    console.log('[AccountAPI] setPassword called (no verification required)');
-    const result = await this.request<void>('/api/my-account/password', {
+    return this.request<void>('/api/my-account/password', {
       method: 'POST',
       body: JSON.stringify(data),
     });
-    console.log('[AccountAPI] setPassword completed');
-    return result;
   }
 
   // Email endpoints (requires verification)
@@ -182,8 +169,8 @@ class AccountApiService {
     email: string,
     verificationRecordId: string,
     newIdentifierVerificationRecordId: string
-  ): Promise<UserProfile> {
-    return this.request<UserProfile>(
+  ): Promise<void> {
+    return this.request<void>(
       '/api/my-account/primary-email',
       {
         method: 'POST',
@@ -206,11 +193,11 @@ class AccountApiService {
     phone: string,
     verificationRecordId: string,
     newIdentifierVerificationRecordId: string
-  ): Promise<UserProfile> {
-    return this.request<UserProfile>(
+  ): Promise<void> {
+    return this.request<void>(
       '/api/my-account/primary-phone',
       {
-        method: 'PATCH',
+        method: 'POST',
         body: JSON.stringify({ phone, newIdentifierVerificationRecordId }),
       },
       verificationRecordId
@@ -230,41 +217,27 @@ class AccountApiService {
     return this.request<MfaVerification[]>('/api/my-account/mfa-verifications');
   }
 
-  async createTotpSecret(verificationRecordId: string): Promise<TotpSecretResponse> {
+  async generateTotpSecret(verificationRecordId: string): Promise<TotpSecretResponse> {
     return this.request<TotpSecretResponse>(
-      '/api/my-account/mfa-verifications',
-      {
-        method: 'POST',
-        body: JSON.stringify({ type: 'Totp' }),
-      },
-      verificationRecordId
-    );
-  }
-
-  async verifyAndBindTotp(
-    code: string,
-    verificationRecordId: string
-  ): Promise<void> {
-    return this.request<void>(
-      '/api/my-account/mfa-verifications/totp/verify',
-      {
-        method: 'POST',
-        body: JSON.stringify({ code }),
-      },
-      verificationRecordId
-    );
-  }
-
-  async generateBackupCodes(verificationRecordId: string): Promise<BackupCodesResponse> {
-    return this.request<BackupCodesResponse>(
-      '/api/my-account/mfa-verifications/generate-backup-codes',
+      '/api/my-account/mfa-verifications/totp-secret/generate',
       { method: 'POST' },
       verificationRecordId
     );
   }
 
-  async getBackupCodes(): Promise<BackupCodesResponse> {
-    return this.request<BackupCodesResponse>('/api/my-account/mfa-verifications/backup-codes');
+  async bindTotp(
+    secret: string,
+    code: string,
+    verificationRecordId: string
+  ): Promise<void> {
+    return this.request<void>(
+      '/api/my-account/mfa-verifications',
+      {
+        method: 'POST',
+        body: JSON.stringify({ type: 'Totp', secret, code }),
+      },
+      verificationRecordId
+    );
   }
 
   async deleteMfaVerification(id: string, verificationRecordId: string): Promise<void> {
@@ -291,24 +264,6 @@ class AccountApiService {
   }
 
   // Identity endpoints (social connections)
-  async linkSocialIdentity(
-    connectorId: string,
-    verificationRecordId: string
-  ): Promise<{ authorizationUri: string; verificationId: string }> {
-    return this.request<{ authorizationUri: string; verificationId: string }>(
-      '/api/verifications/social',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          connectorId,
-          redirectUri: `${window.location.origin}/user/callback/social`,
-          state: crypto.randomUUID(),
-        }),
-      },
-      verificationRecordId
-    );
-  }
-
   async verifySocialIdentity(
     connectorId: string,
     verificationId: string,
@@ -339,11 +294,11 @@ class AccountApiService {
   }
 
   async unlinkSocialIdentity(
-    identityId: string,
+    target: string,
     verificationRecordId: string
   ): Promise<void> {
     return this.request<void>(
-      `/api/my-account/identities/${identityId}`,
+      `/api/my-account/identities/${target}`,
       { method: 'DELETE' },
       verificationRecordId
     );
@@ -365,8 +320,8 @@ class AccountApiService {
     connectorId: string,
     redirectUri: string,
     state: string
-  ): Promise<{ authorizationUri: string; verificationRecordId: string }> {
-    return this.request<{ authorizationUri: string; verificationRecordId: string }>(
+  ): Promise<{ authorizationUri: string; verificationId: string }> {
+    return this.request<{ authorizationUri: string; verificationId: string }>(
       '/api/verifications/social',
       {
         method: 'POST',
@@ -380,14 +335,4 @@ class AccountApiService {
   }
 }
 
-interface SocialConnector {
-  id: string;
-  target: string;
-  platform: string | null;
-  name: Record<string, string>;
-  logo: string;
-  logoDark: string | null;
-}
-
-export type { SocialConnector };
 export const accountApi = new AccountApiService();

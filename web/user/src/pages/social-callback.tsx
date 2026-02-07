@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Alert } from '@/components/ui';
 import { accountApi } from '@/services';
 
 export function SocialCallbackPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +17,8 @@ export function SocialCallbackPage() {
         // Get stored state
         const storedState = sessionStorage.getItem('social_link_state');
         const connectorId = sessionStorage.getItem('social_link_connector');
-        const verificationRecordId = sessionStorage.getItem('social_link_verification_record');
+        const passwordVerificationId = sessionStorage.getItem('social_link_verification');
+        const socialVerificationId = sessionStorage.getItem('social_link_verification_id');
 
         // Get callback params
         const state = searchParams.get('state');
@@ -26,7 +29,7 @@ export function SocialCallbackPage() {
           throw new Error('State mismatch - possible CSRF attack');
         }
 
-        if (!connectorId || !verificationRecordId) {
+        if (!connectorId || !socialVerificationId || !passwordVerificationId) {
           throw new Error('Missing session data');
         }
 
@@ -41,16 +44,16 @@ export function SocialCallbackPage() {
           callbackData[key] = value;
         });
 
-        // Verify social identity
+        // Verify social identity using social verification ID
         const verifyResult = await accountApi.verifySocialIdentity(
           connectorId,
-          verificationRecordId,
+          socialVerificationId,
           callbackData
         );
 
-        // Bind social identity to account
+        // Bind social identity using password verification as identity proof
         await accountApi.bindSocialIdentity(
-          verificationRecordId,
+          passwordVerificationId,
           verifyResult.verificationRecordId
         );
 
@@ -58,7 +61,7 @@ export function SocialCallbackPage() {
         sessionStorage.removeItem('social_link_state');
         sessionStorage.removeItem('social_link_connector');
         sessionStorage.removeItem('social_link_verification');
-        sessionStorage.removeItem('social_link_verification_record');
+        sessionStorage.removeItem('social_link_verification_id');
 
         setStatus('success');
 
@@ -68,19 +71,19 @@ export function SocialCallbackPage() {
         }, 1500);
       } catch (err) {
         console.error('Social callback error:', err);
-        setError(err instanceof Error ? err.message : '关联失败');
+        setError(err instanceof Error ? err.message : t('connections.linkFailed'));
         setStatus('error');
 
         // Clean up session storage on error too
         sessionStorage.removeItem('social_link_state');
         sessionStorage.removeItem('social_link_connector');
         sessionStorage.removeItem('social_link_verification');
-        sessionStorage.removeItem('social_link_verification_record');
+        sessionStorage.removeItem('social_link_verification_id');
       }
     }
 
     handleCallback();
-  }, [navigate, searchParams]);
+  }, [navigate, searchParams, t]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -88,8 +91,8 @@ export function SocialCallbackPage() {
         {status === 'processing' && (
           <>
             <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-4" />
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">正在关联账号...</h2>
-            <p className="text-gray-500">请稍候</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">{t('connections.callback.linking')}</h2>
+            <p className="text-gray-500">{t('connections.callback.pleaseWait')}</p>
           </>
         )}
 
@@ -100,8 +103,8 @@ export function SocialCallbackPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">关联成功</h2>
-            <p className="text-gray-500">正在跳转...</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">{t('connections.callback.linkSuccess')}</h2>
+            <p className="text-gray-500">{t('connections.callback.redirecting')}</p>
           </>
         )}
 
@@ -112,7 +115,7 @@ export function SocialCallbackPage() {
               onClick={() => navigate('/connections', { replace: true })}
               className="text-primary-600 hover:underline"
             >
-              返回关联账号页面
+              {t('connections.callback.backToConnections')}
             </button>
           </>
         )}

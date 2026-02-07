@@ -1,8 +1,11 @@
 export { Button } from './button';
 export { Input } from './input';
 export { PasswordInput } from './password-input';
+export { PhoneInput } from './phone-input';
 export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './card';
 export { Avatar } from './avatar';
 export { Modal } from './modal';
 export { Alert } from './alert';
+export { Select } from './select';
+export { Spinner } from './spinner';
 export { Skeleton, InputSkeleton, ProfileFormSkeleton, SecuritySkeleton, PasswordFormSkeleton } from './skeleton';

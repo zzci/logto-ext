@@ -13,7 +13,10 @@
   },
   "dependencies": {
     "consola": "^3.4.2",
-    "hono": "^4.11.7"
+    "hono": "^4.11.7",
+    "i18next": "^25.8.4",
+    "react-i18next": "^16.5.4",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@hono/vite-dev-server": "^0.25.0",

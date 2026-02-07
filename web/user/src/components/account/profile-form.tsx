@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Button, Input, Avatar, Alert } from '@/components/ui';
+import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Button, Input, Select, Avatar, Alert } from '@/components/ui';
 import { useAccount } from '@/hooks';
 import type { UserProfile } from '@/types';
 
@@ -8,9 +9,13 @@ interface ProfileFormProps {
 }
 
 export function ProfileForm({ profile }: ProfileFormProps) {
+  const { t } = useTranslation();
   const { updateProfile, updateExtendedProfile, isUpdating } = useAccount();
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Guard: don't re-sync form from server during submission
+  const isSubmittingRef = useRef(false);
 
   const [formData, setFormData] = useState({
     username: profile.username || '',
@@ -24,7 +29,9 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     birthdate: profile.profile?.birthdate || '',
   });
 
+  // Sync from server data — but skip during submission to avoid flash
   useEffect(() => {
+    if (isSubmittingRef.current) return;
     setFormData({
       username: profile.username || '',
       name: profile.name || '',
@@ -41,16 +48,15 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(false);
+    setSuccess(null);
 
+    isSubmittingRef.current = true;
     try {
-      // Update basic profile (username is read-only)
       await updateProfile({
         name: formData.name || undefined,
         avatar: formData.avatar || undefined,
       });
 
-      // Update extended profile
       await updateExtendedProfile({
         nickname: formData.nickname || undefined,
         givenName: formData.givenName || undefined,
@@ -60,115 +66,123 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         birthdate: formData.birthdate || undefined,
       });
 
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      setSuccess(t('profile.updateSuccess'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : '更新失败');
+      setError(err instanceof Error ? err.message : t('profile.updateError'));
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (success) setSuccess(null);
+    if (error) setError(null);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {success && <Alert type="success">{success}</Alert>}
       {error && <Alert type="error">{error}</Alert>}
-      {success && <Alert type="success">个人资料已更新</Alert>}
 
-      {/* Avatar Section */}
-      <div className="flex items-center gap-4">
-        <Avatar src={formData.avatar} name={formData.name} size="xl" />
-        <div>
+      {/* Avatar Section — stacked on mobile */}
+      <div className="flex flex-col sm:flex-row items-center gap-4">
+        <Avatar src={formData.avatar} name={formData.name} size="xl" className="flex-shrink-0" />
+        <div className="w-full">
           <Input
             name="avatar"
+            label={t('profile.avatar')}
             value={formData.avatar}
             onChange={handleChange}
-            placeholder="输入头像 URL"
-            hint="支持 HTTPS 图片链接"
+            placeholder={t('profile.avatarPlaceholder')}
+            hint={t('profile.avatarHint')}
+            disabled={isUpdating}
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input
-          label="用户名"
+          label={t('profile.username')}
           name="username"
           value={formData.username}
           disabled
-          hint="用户名为只读"
+          hint={t('profile.usernameReadonly')}
         />
         <Input
-          label="显示名称"
+          label={t('profile.displayName')}
           name="name"
           value={formData.name}
           onChange={handleChange}
-          placeholder="您的名称"
+          placeholder={t('profile.displayNamePlaceholder')}
+          disabled={isUpdating}
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input
-          label="名"
+          label={t('profile.givenName')}
           name="givenName"
           value={formData.givenName}
           onChange={handleChange}
+          disabled={isUpdating}
         />
         <Input
-          label="姓"
+          label={t('profile.familyName')}
           name="familyName"
           value={formData.familyName}
           onChange={handleChange}
+          disabled={isUpdating}
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input
-          label="昵称"
+          label={t('profile.nickname')}
           name="nickname"
           value={formData.nickname}
           onChange={handleChange}
+          disabled={isUpdating}
         />
         <Input
-          label="个人网站"
+          label={t('profile.website')}
           name="website"
           type="url"
           value={formData.website}
           onChange={handleChange}
-          placeholder="https://example.com"
+          placeholder={t('profile.websitePlaceholder')}
+          disabled={isUpdating}
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            性别
-          </label>
-          <select
-            name="gender"
-            value={formData.gender}
-            onChange={handleChange}
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          >
-            <option value="">未设置</option>
-            <option value="male">男</option>
-            <option value="female">女</option>
-            <option value="other">其他</option>
-          </select>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Select
+          label={t('profile.gender')}
+          name="gender"
+          value={formData.gender}
+          onChange={handleChange}
+          disabled={isUpdating}
+        >
+          <option value="">{t('profile.genderOptions.unset')}</option>
+          <option value="male">{t('profile.genderOptions.male')}</option>
+          <option value="female">{t('profile.genderOptions.female')}</option>
+          <option value="other">{t('profile.genderOptions.other')}</option>
+        </Select>
         <Input
-          label="生日"
+          label={t('profile.birthdate')}
           name="birthdate"
           type="date"
           value={formData.birthdate}
           onChange={handleChange}
+          disabled={isUpdating}
         />
       </div>
 
-      <div className="flex justify-end">
-        <Button type="submit" loading={isUpdating}>
-          保存更改
+      {/* Sticky save on mobile */}
+      <div className="flex justify-end sticky bottom-16 sm:bottom-0 sm:static pt-2 pb-2 sm:pb-0 bg-white sm:bg-transparent -mx-4 sm:mx-0 px-4 sm:px-0 border-t sm:border-0 border-gray-100">
+        <Button type="submit" loading={isUpdating} className="w-full sm:w-auto">
+          {t('profile.saveChanges')}
         </Button>
       </div>
     </form>

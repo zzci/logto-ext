@@ -1,171 +1,162 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link2, Unlink, Plus } from 'lucide-react';
-import { Button, Alert } from '@/components/ui';
-import { PasswordVerificationModal } from './password-verification-modal';
-import { useVerification } from '@/hooks';
+import { Button, Alert, Modal } from '@/components/ui';
+import { useVerificationStore } from '@/stores';
 import { accountApi } from '@/services';
-import type { SocialConnector } from '@/services/account-api';
-import type { UserProfile } from '@/types';
+import i18n from '@/i18n';
+import type { UserProfile, SocialConnector } from '@/types';
 
 interface LinkedAccountsProps {
   profile: UserProfile;
   onUpdate: () => void;
 }
 
-// Common social provider icons and names
-const socialProviders: Record<string, { name: string; icon: string; color: string }> = {
-  google: { name: 'Google', icon: '🔍', color: 'bg-red-50 text-red-600' },
-  github: { name: 'GitHub', icon: '🐙', color: 'bg-gray-50 text-gray-800' },
-  wechat: { name: '微信', icon: '💬', color: 'bg-green-50 text-green-600' },
-  apple: { name: 'Apple', icon: '🍎', color: 'bg-gray-50 text-gray-800' },
-  facebook: { name: 'Facebook', icon: '📘', color: 'bg-blue-50 text-blue-600' },
-  discord: { name: 'Discord', icon: '🎮', color: 'bg-indigo-50 text-indigo-600' },
-  microsoft: { name: 'Microsoft', icon: '🪟', color: 'bg-blue-50 text-blue-600' },
-  alipay: { name: '支付宝', icon: '💰', color: 'bg-blue-50 text-blue-600' },
-  weibo: { name: '微博', icon: '📱', color: 'bg-red-50 text-red-600' },
-};
+const socialProviderDefs = {
+  google: { nameKey: 'connections.socialProviders.google' as const, icon: '🔍', color: 'bg-red-50 text-red-600' },
+  github: { nameKey: 'connections.socialProviders.github' as const, icon: '🐙', color: 'bg-gray-50 text-gray-800' },
+  wechat: { nameKey: 'connections.socialProviders.wechat' as const, icon: '💬', color: 'bg-green-50 text-green-600' },
+  apple: { nameKey: 'connections.socialProviders.apple' as const, icon: '🍎', color: 'bg-gray-50 text-gray-800' },
+  facebook: { nameKey: 'connections.socialProviders.facebook' as const, icon: '📘', color: 'bg-blue-50 text-blue-600' },
+  discord: { nameKey: 'connections.socialProviders.discord' as const, icon: '🎮', color: 'bg-indigo-50 text-indigo-600' },
+  microsoft: { nameKey: 'connections.socialProviders.microsoft' as const, icon: '🪟', color: 'bg-blue-50 text-blue-600' },
+  alipay: { nameKey: 'connections.socialProviders.alipay' as const, icon: '💰', color: 'bg-blue-50 text-blue-600' },
+  weibo: { nameKey: 'connections.socialProviders.weibo' as const, icon: '📱', color: 'bg-red-50 text-red-600' },
+} as const;
 
 export function LinkedAccounts({ profile, onUpdate }: LinkedAccountsProps) {
-  const { verifyPassword } = useVerification();
+  const { t } = useTranslation();
+  const verify = useVerificationStore((s) => s.verify);
 
-  const [showVerifyModal, setShowVerifyModal] = useState(false);
-  const [unlinkTarget, setUnlinkTarget] = useState<string | null>(null);
-  const [linkTarget, setLinkTarget] = useState<SocialConnector | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [actionTarget, setActionTarget] = useState<string | null>(null);
   const [availableConnectors, setAvailableConnectors] = useState<SocialConnector[]>([]);
   const [loadingConnectors, setLoadingConnectors] = useState(true);
+
+  // Unlink confirmation
+  const [unlinkTarget, setUnlinkTarget] = useState<string | null>(null);
 
   const identities = Object.entries(profile.identities || {});
   const linkedTargets = identities.map(([target]) => target.toLowerCase());
 
-  // Load available social connectors
   useEffect(() => {
-    async function loadConnectors() {
-      try {
-        const connectors = await accountApi.getSocialConnectors();
-        // Filter to only social connectors (not email/sms)
-        const socialConnectors = connectors.filter(
-          (c) => c.platform !== null || (c.target !== 'email' && c.target !== 'sms')
+    accountApi.getSocialConnectors()
+      .then((connectors) => {
+        setAvailableConnectors(
+          connectors.filter((c) => c.platform !== null || (c.target !== 'email' && c.target !== 'sms'))
         );
-        setAvailableConnectors(socialConnectors);
-      } catch (err) {
-        console.error('Failed to load connectors:', err);
-      } finally {
-        setLoadingConnectors(false);
-      }
-    }
-    loadConnectors();
+      })
+      .catch((err) => console.error('Failed to load connectors:', err))
+      .finally(() => setLoadingConnectors(false));
   }, []);
 
-  const handleUnlink = (identityId: string) => {
-    setUnlinkTarget(identityId);
-    setLinkTarget(null);
-    setShowVerifyModal(true);
-  };
-
-  const handleLink = (connector: SocialConnector) => {
-    setLinkTarget(connector);
+  const handleUnlink = async () => {
+    if (!unlinkTarget) return;
+    const target = unlinkTarget;
     setUnlinkTarget(null);
-    setShowVerifyModal(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const recordId = await verify({ description: t('connections.unlinkVerify') });
+      setActionTarget(target);
+      setIsLoading(true);
+      await accountApi.unlinkSocialIdentity(target, recordId);
+      setSuccess(t('connections.unlinkSuccess'));
+      onUpdate();
+    } catch (err) {
+      if (err instanceof Error && err.message !== 'cancelled') {
+        setError(err.message);
+      }
+    } finally {
+      setIsLoading(false);
+      setActionTarget(null);
+    }
   };
 
-  const handleVerifyAndAction = async (password: string) => {
-    const recordId = await verifyPassword(password);
-    setShowVerifyModal(false);
-
-    if (unlinkTarget) {
-      // Unlink flow
+  const handleLink = async (connector: SocialConnector) => {
+    setError(null);
+    setSuccess(null);
+    try {
+      const recordId = await verify({ description: t('connections.linkVerify') });
+      setActionTarget(connector.id);
       setIsLoading(true);
-      try {
-        await accountApi.unlinkSocialIdentity(unlinkTarget, recordId);
-        onUpdate();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : '解绑失败');
-      } finally {
-        setIsLoading(false);
-        setUnlinkTarget(null);
+
+      const state = crypto.randomUUID();
+      const redirectUri = `${window.location.origin}/user/callback/social`;
+
+      sessionStorage.setItem('social_link_state', state);
+      sessionStorage.setItem('social_link_connector', connector.id);
+      sessionStorage.setItem('social_link_verification', recordId);
+
+      const result = await accountApi.startSocialLinking(connector.id, redirectUri, state);
+      sessionStorage.setItem('social_link_verification_id', result.verificationId);
+
+      window.location.href = result.authorizationUri;
+    } catch (err) {
+      if (err instanceof Error && err.message !== 'cancelled') {
+        setError(err.message);
       }
-    } else if (linkTarget) {
-      // Link flow - redirect to social provider
-      setIsLoading(true);
-      try {
-        const state = crypto.randomUUID();
-        const redirectUri = `${window.location.origin}/user/callback/social`;
-
-        // Store state for callback verification
-        sessionStorage.setItem('social_link_state', state);
-        sessionStorage.setItem('social_link_connector', linkTarget.id);
-        sessionStorage.setItem('social_link_verification', recordId);
-
-        const result = await accountApi.startSocialLinking(
-          linkTarget.id,
-          redirectUri,
-          state
-        );
-
-        // Store verification record ID for binding after callback
-        sessionStorage.setItem('social_link_verification_record', result.verificationRecordId);
-
-        // Redirect to social provider
-        window.location.href = result.authorizationUri;
-      } catch (err) {
-        setError(err instanceof Error ? err.message : '关联失败');
-        setIsLoading(false);
-        setLinkTarget(null);
-      }
+      setIsLoading(false);
+      setActionTarget(null);
     }
   };
 
   const getProviderInfo = (target: string) => {
-    const key = target.toLowerCase();
-    return socialProviders[key] || { name: target, icon: '🔗', color: 'bg-gray-50 text-gray-600' };
+    const key = target.toLowerCase() as keyof typeof socialProviderDefs;
+    const def = socialProviderDefs[key];
+    if (def) {
+      return { name: t(def.nameKey), icon: def.icon, color: def.color };
+    }
+    return { name: target, icon: '🔗', color: 'bg-gray-50 text-gray-600' };
   };
 
   const getConnectorName = (connector: SocialConnector) => {
-    return connector.name['zh-CN'] || connector.name['en'] || connector.target;
+    const lang = i18n.language === 'zh-CN' ? 'zh-CN' : 'en';
+    return connector.name[lang] || connector.name['zh-CN'] || connector.name['en'] || connector.target;
   };
 
-  // Filter out already linked connectors
   const unlinkedConnectors = availableConnectors.filter(
     (c) => !linkedTargets.includes(c.target.toLowerCase())
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {success && <Alert type="success">{success}</Alert>}
       {error && <Alert type="error">{error}</Alert>}
 
       {/* Linked accounts */}
       {identities.length > 0 && (
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium text-gray-700">已关联账号</h4>
+        <div className="space-y-2">
+          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide">{t('connections.linked')}</h4>
           {identities.map(([target, identity]) => {
             const provider = getProviderInfo(target);
             return (
               <div
                 key={target}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg gap-2"
               >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl ${provider.color}`}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${provider.color}`}>
                     {provider.icon}
                   </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{provider.name}</p>
-                    <p className="text-sm text-gray-500">
-                      ID: {identity.userId.slice(0, 16)}...
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 text-sm">{provider.name}</p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {identity.userId.slice(0, 16)}...
                     </p>
                   </div>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleUnlink(target)}
-                  loading={isLoading && unlinkTarget === target}
-                  className="text-red-600 border-red-200 hover:bg-red-50"
+                  onClick={() => setUnlinkTarget(target)}
+                  loading={isLoading && actionTarget === target}
+                  className="text-red-600 border-red-200 hover:bg-red-50 flex-shrink-0"
                 >
-                  <Unlink className="w-4 h-4 mr-1" />
-                  解绑
+                  <Unlink className="w-4 h-4 sm:mr-1" />
+                  <span className="hidden sm:inline">{t('connections.unlink')}</span>
                 </Button>
               </div>
             );
@@ -175,9 +166,9 @@ export function LinkedAccounts({ profile, onUpdate }: LinkedAccountsProps) {
 
       {/* Available connectors to link */}
       {!loadingConnectors && unlinkedConnectors.length > 0 && (
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium text-gray-700">可关联账号</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide">{t('connections.available')}</h4>
+          <div className="space-y-2">
             {unlinkedConnectors.map((connector) => {
               const provider = getProviderInfo(connector.target);
               return (
@@ -185,22 +176,22 @@ export function LinkedAccounts({ profile, onUpdate }: LinkedAccountsProps) {
                   key={connector.id}
                   onClick={() => handleLink(connector)}
                   disabled={isLoading}
-                  className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg hover:border-primary-400 hover:bg-primary-50 transition-colors text-left disabled:opacity-50"
+                  className="flex items-center gap-3 w-full p-3 sm:p-4 bg-white border border-gray-200 rounded-lg hover:border-primary-400 hover:bg-primary-50 active:bg-primary-100 transition-colors text-left disabled:opacity-50"
                 >
                   {connector.logo ? (
                     <img
                       src={connector.logo}
                       alt={getConnectorName(connector)}
-                      className="w-10 h-10 rounded-lg object-contain"
+                      className="w-10 h-10 rounded-lg object-contain flex-shrink-0"
                     />
                   ) : (
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl ${provider.color}`}>
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${provider.color}`}>
                       {provider.icon}
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{getConnectorName(connector)}</p>
-                    <p className="text-sm text-gray-500">点击关联</p>
+                    <p className="font-medium text-gray-900 text-sm truncate">{getConnectorName(connector)}</p>
+                    <p className="text-xs text-gray-500">{t('connections.clickToLink')}</p>
                   </div>
                   <Plus className="w-5 h-5 text-gray-400 flex-shrink-0" />
                 </button>
@@ -211,36 +202,35 @@ export function LinkedAccounts({ profile, onUpdate }: LinkedAccountsProps) {
       )}
 
       {loadingConnectors && (
-        <div className="text-center py-4 text-gray-500">加载可用连接器...</div>
+        <div className="text-center py-4 text-sm text-gray-500">{t('common.loading')}</div>
       )}
 
       {identities.length === 0 && !loadingConnectors && unlinkedConnectors.length === 0 && (
         <div className="text-center py-8">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-            <Link2 className="w-8 h-8 text-gray-400" />
+          <div className="w-14 h-14 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
+            <Link2 className="w-6 h-6 text-gray-400" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">暂无可用的社交登录</h3>
-          <p className="text-sm text-gray-500">
-            请联系管理员配置社交登录连接器
-          </p>
+          <p className="text-sm font-medium text-gray-900 mb-1">{t('connections.noConnectors')}</p>
+          <p className="text-xs text-gray-500">{t('connections.contactAdmin')}</p>
         </div>
       )}
 
-      <PasswordVerificationModal
-        isOpen={showVerifyModal}
-        onClose={() => {
-          setShowVerifyModal(false);
-          setUnlinkTarget(null);
-          setLinkTarget(null);
-        }}
-        onVerify={handleVerifyAndAction}
-        title="验证身份"
-        description={
-          unlinkTarget
-            ? '解绑社交账号需要验证您的身份'
-            : '关联社交账号需要验证您的身份'
-        }
-      />
+      {/* Unlink Confirmation */}
+      <Modal isOpen={!!unlinkTarget} onClose={() => setUnlinkTarget(null)} title={t('connections.unlinkTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            {t('connections.unlinkConfirm', { name: unlinkTarget ? getProviderInfo(unlinkTarget).name : '' })}
+          </p>
+          <div className="flex gap-3 sm:justify-end">
+            <Button variant="outline" onClick={() => setUnlinkTarget(null)} className="flex-1 sm:flex-none">
+              {t('common.cancel')}
+            </Button>
+            <Button variant="danger" onClick={handleUnlink} className="flex-1 sm:flex-none">
+              {t('connections.confirmUnlink')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -1,6 +1,7 @@
-import { useState, useRef, memo } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui';
+import { useState, memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ChevronDown } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, Spinner } from '@/components/ui';
 import { ProfileForm } from './profile-form';
 import { ChangePasswordForm } from './change-password-form';
 import { MfaSettings } from './mfa-settings';
@@ -14,6 +15,7 @@ type TabId = 'profile' | 'security' | 'connections' | 'settings';
 
 interface AccountCenterProps {
   activeTab: TabId;
+  onSignOut: () => void;
 }
 
 interface CollapsibleCardProps {
@@ -23,87 +25,73 @@ interface CollapsibleCardProps {
   children: React.ReactNode;
 }
 
-// Move CollapsibleCard outside and memoize it to prevent state reset on parent re-render
 const CollapsibleCard = memo(function CollapsibleCard({
   title,
   description,
   defaultOpen = false,
-  children
+  children,
 }: CollapsibleCardProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
-  const hasBeenOpened = useRef(defaultOpen);
-
-  if (isOpen && !hasBeenOpened.current) {
-    hasBeenOpened.current = true;
-  }
 
   return (
     <Card>
       <CardHeader
-        className="cursor-pointer select-none"
+        className="cursor-pointer select-none active:bg-gray-50 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <CardTitle>{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
+            <CardDescription className={cn(isOpen && 'hidden sm:block')}>{description}</CardDescription>
           </div>
-          <div className="text-gray-400">
-            {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+          <div className={cn(
+            'text-gray-400 transition-transform duration-200 flex-shrink-0',
+            isOpen && 'rotate-180'
+          )}>
+            <ChevronDown className="w-5 h-5" />
           </div>
         </div>
       </CardHeader>
-      <div className={cn(!isOpen && 'hidden')}>
-        {hasBeenOpened.current && <CardContent>{children}</CardContent>}
+      <div
+        className="collapsible-content"
+        data-open={isOpen}
+      >
+        <div>
+          <CardContent>{children}</CardContent>
+        </div>
       </div>
     </Card>
   );
 });
 
-// Memoize ChangePasswordForm to prevent unnecessary re-renders
-const MemoizedChangePasswordForm = memo(ChangePasswordForm);
-
-export function AccountCenter({ activeTab }: AccountCenterProps) {
+export function AccountCenter({ activeTab, onSignOut }: AccountCenterProps) {
+  const { t } = useTranslation();
   const { profile, isLoading, error, refetch } = useAccount();
 
-  // Store hasPassword in a ref to prevent re-renders from changing props
-  const hasPasswordRef = useRef<boolean | null>(null);
-  if (profile && hasPasswordRef.current === null) {
-    hasPasswordRef.current = profile.hasPassword;
-  }
-
   if (isLoading && !profile) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">加载中...</p>
-        </div>
-      </div>
-    );
+    return <Spinner />;
   }
 
   if (error && !profile) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-red-500">加载失败: {error.message}</div>
+        <div className="text-center">
+          <p className="text-red-500 mb-2">{t('profile.updateError')}</p>
+          <p className="text-sm text-gray-500">{error.message}</p>
+        </div>
       </div>
     );
   }
 
-  if (!profile) {
-    return null;
-  }
-
-  const hasPassword = hasPasswordRef.current ?? profile.hasPassword;
+  if (!profile) return null;
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-4">
       {activeTab === 'profile' && (
         <Card>
           <CardHeader>
-            <CardTitle>个人资料</CardTitle>
-            <CardDescription>管理您的个人信息和公开资料</CardDescription>
+            <CardTitle>{t('profile.title')}</CardTitle>
+            <CardDescription>{t('profile.description')}</CardDescription>
           </CardHeader>
           <CardContent>
             <ProfileForm profile={profile} />
@@ -112,32 +100,32 @@ export function AccountCenter({ activeTab }: AccountCenterProps) {
       )}
 
       {activeTab === 'security' && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <CollapsibleCard
-            title="邮箱与手机"
-            description="管理用于登录和接收通知的联系方式"
+            title={t('security.emailPhone.title')}
+            description={t('security.emailPhone.description')}
+            defaultOpen
           >
             <EmailPhoneSettings profile={profile} onUpdate={refetch} />
           </CollapsibleCard>
 
           <CollapsibleCard
-            title={hasPassword ? '修改密码' : '设置密码'}
+            title={profile.hasPassword ? t('security.password.changeTitle') : t('security.password.setTitle')}
             description={
-              hasPassword
-                ? '定期更换密码可以提高账户安全性'
-                : '您的账户尚未设置密码，设置密码后可以使用密码登录'
+              profile.hasPassword
+                ? t('security.password.changeDescription')
+                : t('security.password.setDescription')
             }
-            defaultOpen
           >
-            <MemoizedChangePasswordForm
-              hasPassword={hasPassword}
+            <ChangePasswordForm
+              hasPassword={profile.hasPassword}
               onSuccess={refetch}
             />
           </CollapsibleCard>
 
           <CollapsibleCard
-            title="双因素认证 (2FA)"
-            description="启用双因素认证可以大幅提升账户安全性，即使密码泄露也能保护您的账户"
+            title={t('security.mfa.title')}
+            description={t('security.mfa.description')}
           >
             <MfaSettings />
           </CollapsibleCard>
@@ -147,10 +135,8 @@ export function AccountCenter({ activeTab }: AccountCenterProps) {
       {activeTab === 'connections' && (
         <Card>
           <CardHeader>
-            <CardTitle>关联账号</CardTitle>
-            <CardDescription>
-              管理已关联的第三方账号，您可以使用这些账号快速登录
-            </CardDescription>
+            <CardTitle>{t('connections.title')}</CardTitle>
+            <CardDescription>{t('connections.description')}</CardDescription>
           </CardHeader>
           <CardContent>
             <LinkedAccounts profile={profile} onUpdate={refetch} />
@@ -159,7 +145,7 @@ export function AccountCenter({ activeTab }: AccountCenterProps) {
       )}
 
       {activeTab === 'settings' && (
-        <SettingsContent profile={profile} />
+        <SettingsContent profile={profile} onSignOut={onSignOut} />
       )}
     </div>
   );

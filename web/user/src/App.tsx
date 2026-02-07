@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LogtoProvider, useLogto } from '@logto/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
@@ -6,6 +7,8 @@ import { getLogtoConfig, getAppConfig } from '@/lib/config';
 import { CallbackPage, SocialCallbackPage } from '@/pages';
 import { AccountLayout } from '@/components/layout';
 import { AccountCenter } from '@/components/account';
+import { PasswordVerificationModal } from '@/components/account/password-verification-modal';
+import { Spinner } from '@/components/ui';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,32 +21,56 @@ const queryClient = new QueryClient({
 
 type TabId = 'profile' | 'security' | 'connections' | 'settings';
 
-function AccountApp() {
-  const { isAuthenticated, isLoading, signIn, signOut } = useLogto();
-  const [activeTab, setActiveTab] = useState<TabId>('profile');
+const validTabs: TabId[] = ['profile', 'security', 'connections', 'settings'];
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">加载中...</p>
-        </div>
-      </div>
-    );
+function getTabFromHash(): TabId {
+  const hash = window.location.hash.slice(1);
+  return validTabs.includes(hash as TabId) ? (hash as TabId) : 'profile';
+}
+
+function AccountApp() {
+  const { t } = useTranslation();
+  const { isAuthenticated, isLoading, signIn, signOut } = useLogto();
+  const [activeTab, setActiveTab] = useState<TabId>(getTabFromHash);
+
+  const handleTabChange = useCallback((tab: TabId) => {
+    setActiveTab(tab);
+    window.location.hash = tab;
+  }, []);
+
+  // Sync tab when user navigates with browser back/forward
+  useEffect(() => {
+    const onHashChange = () => setActiveTab(getTabFromHash());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  // Track if user was ever authenticated in this session.
+  // This prevents the entire component tree from unmounting during
+  // token refresh (isLoading briefly flips to true), which would
+  // destroy all form state.
+  const wasAuthenticated = useRef(false);
+  if (isAuthenticated) {
+    wasAuthenticated.current = true;
   }
 
-  if (!isAuthenticated) {
+  // Only show loading spinner on initial load, not during token refresh
+  if (isLoading && !wasAuthenticated.current) {
+    return <Spinner />;
+  }
+
+  // Only show login when never authenticated, not during token refresh
+  if (!isAuthenticated && !wasAuthenticated.current) {
     const appConfig = getAppConfig();
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">请先登录以访问账户中心</p>
+          <p className="text-gray-600 mb-4">{t('auth.loginRequired')}</p>
           <button
             onClick={() => signIn(appConfig.baseUrl + '/user/callback')}
             className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
           >
-            登录
+            {t('auth.login')}
           </button>
         </div>
       </div>
@@ -52,16 +79,16 @@ function AccountApp() {
 
   const handleSignOut = () => {
     const appConfig = getAppConfig();
+    wasAuthenticated.current = false;
     signOut(appConfig.baseUrl + '/user');
   };
 
   return (
     <AccountLayout
       activeTab={activeTab}
-      onTabChange={setActiveTab}
-      onSignOut={handleSignOut}
+      onTabChange={handleTabChange}
     >
-      <AccountCenter activeTab={activeTab} />
+      <AccountCenter activeTab={activeTab} onSignOut={handleSignOut} />
     </AccountLayout>
   );
 }
@@ -82,6 +109,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <BrowserRouter basename="/user">
           <AppRoutes />
+          <PasswordVerificationModal />
         </BrowserRouter>
       </QueryClientProvider>
     </LogtoProvider>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface AvatarProps {
@@ -8,6 +9,8 @@ interface AvatarProps {
 }
 
 export function Avatar({ src, name, size = 'md', className }: AvatarProps) {
+  const [imgError, setImgError] = useState(false);
+
   const sizes = {
     sm: 'w-8 h-8 text-xs',
     md: 'w-10 h-10 text-sm',
@@ -22,11 +25,12 @@ export function Avatar({ src, name, size = 'md', className }: AvatarProps) {
     .toUpperCase()
     .slice(0, 2) || '?';
 
-  if (src) {
+  if (src && !imgError) {
     return (
       <img
         src={src}
         alt={name || 'Avatar'}
+        onError={() => setImgError(true)}
         className={cn('rounded-full object-cover', sizes[size], className)}
       />
     );

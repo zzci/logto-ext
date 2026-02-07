@@ -119,11 +119,7 @@ export interface AddMfaRequest {
 }
 
 export interface TotpSecretResponse {
-  verificationId: string;
   secret: string;
   secretQrCode: string;
 }
 
-export interface BackupCodesResponse {
-  codes: string[];
-}

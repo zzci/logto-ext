@@ -14,25 +14,19 @@ export function useMfa() {
 
   const createTotpMutation = useMutation({
     mutationFn: (verificationRecordId: string) =>
-      accountApi.createTotpSecret(verificationRecordId),
+      accountApi.generateTotpSecret(verificationRecordId),
   });
 
-  const verifyTotpMutation = useMutation({
+  const bindTotpMutation = useMutation({
     mutationFn: ({
+      secret,
       code,
       verificationRecordId,
     }: {
+      secret: string;
       code: string;
       verificationRecordId: string;
-    }) => accountApi.verifyAndBindTotp(code, verificationRecordId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mfa-verifications'] });
-    },
-  });
-
-  const generateBackupCodesMutation = useMutation({
-    mutationFn: (verificationRecordId: string) =>
-      accountApi.generateBackupCodes(verificationRecordId),
+    }) => accountApi.bindTotp(secret, code, verificationRecordId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mfa-verifications'] });
     },
@@ -56,10 +50,9 @@ export function useMfa() {
     isLoading: mfaQuery.isLoading,
     error: mfaQuery.error,
     createTotp: createTotpMutation.mutateAsync,
-    verifyTotp: verifyTotpMutation.mutateAsync,
-    generateBackupCodes: generateBackupCodesMutation.mutateAsync,
+    bindTotp: bindTotpMutation.mutateAsync,
     deleteMfa: deleteMfaMutation.mutateAsync,
     isCreatingTotp: createTotpMutation.isPending,
-    isVerifyingTotp: verifyTotpMutation.isPending,
+    isBindingTotp: bindTotpMutation.isPending,
   };
 }

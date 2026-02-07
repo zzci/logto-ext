@@ -1,65 +1,107 @@
-import { User, Shield, Link2, Settings, LogOut } from 'lucide-react';
+import { User, Shield, Link2, Settings } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 type TabId = 'profile' | 'security' | 'connections' | 'settings';
 
-interface Tab {
-  id: TabId;
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-}
-
-const tabs: Tab[] = [
-  { id: 'profile', icon: User, label: '个人资料' },
-  { id: 'security', icon: Shield, label: '安全设置' },
-  { id: 'connections', icon: Link2, label: '关联账号' },
-  { id: 'settings', icon: Settings, label: '偏好设置' },
+const tabDefs = [
+  { id: 'profile' as const, icon: User, labelKey: 'layout.tabs.profile' as const },
+  { id: 'security' as const, icon: Shield, labelKey: 'layout.tabs.security' as const },
+  { id: 'connections' as const, icon: Link2, labelKey: 'layout.tabs.connections' as const },
+  { id: 'settings' as const, icon: Settings, labelKey: 'layout.tabs.settings' as const },
 ];
 
 interface AccountLayoutProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
-  onSignOut: () => void;
   children: React.ReactNode;
 }
 
-export function AccountLayout({ activeTab, onTabChange, onSignOut, children }: AccountLayoutProps) {
-  return (
-    <div className="max-w-3xl mx-auto px-6 py-6">
-      {/* Header */}
-      <div className="mb-6 text-center">
-        <h1 className="text-xl font-bold text-gray-900">账户中心</h1>
-        <p className="text-sm text-gray-500 mt-1">管理您的账户信息和安全设置</p>
-      </div>
+export function AccountLayout({ activeTab, onTabChange, children }: AccountLayoutProps) {
+  const { t } = useTranslation();
 
-      {/* Tab bar */}
-      <div className="flex gap-1 p-1 bg-gray-100 rounded-lg mb-6">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors',
-              activeTab === tab.id
-                ? 'bg-white text-primary-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            )}
-          >
-            <tab.icon className="w-4 h-4" />
-            {tab.label}
-          </button>
-        ))}
-        <button
-          onClick={onSignOut}
-          className="ml-auto flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          退出
-        </button>
-      </div>
+  return (
+    <div className="min-h-screen flex flex-col pb-16 sm:pb-0">
+      {/* Desktop header — hidden on mobile */}
+      <header className="hidden sm:block sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="max-w-2xl mx-auto px-6 py-3">
+          <div className="flex items-center justify-between">
+            <h1 className="text-lg font-semibold text-gray-900">{t('layout.accountCenter')}</h1>
+            <nav role="tablist" aria-label={t('layout.accountSettings')} className="flex gap-1 p-1 bg-gray-100 rounded-lg">
+              {tabDefs.map((tab) => (
+                <button
+                  key={tab.id}
+                  role="tab"
+                  aria-selected={activeTab === tab.id}
+                  aria-controls={`tabpanel-${tab.id}`}
+                  id={`tab-${tab.id}`}
+                  onClick={() => onTabChange(tab.id)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200',
+                    activeTab === tab.id
+                      ? 'bg-white text-primary-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  )}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {t(tab.labelKey)}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile header */}
+      <header className="sm:hidden sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="px-4 py-3 text-center">
+          <h1 className="text-lg font-semibold text-gray-900">
+            {tabDefs.find((td) => td.id === activeTab) ? t(tabDefs.find((td) => td.id === activeTab)!.labelKey) : t('layout.accountCenter')}
+          </h1>
+        </div>
+      </header>
 
       {/* Content */}
-      {children}
+      <main className="flex-1">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+          <div
+            role="tabpanel"
+            id={`tabpanel-${activeTab}`}
+            aria-labelledby={`tab-${activeTab}`}
+          >
+            {children}
+          </div>
+        </div>
+      </main>
+
+      {/* Mobile bottom tab bar */}
+      <nav
+        role="tablist"
+        aria-label={t('layout.accountSettings')}
+        className="sm:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 safe-area-bottom"
+      >
+        <div className="grid grid-cols-4 h-14">
+          {tabDefs.map((tab) => (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              aria-controls={`tabpanel-${tab.id}`}
+              id={`tab-mobile-${tab.id}`}
+              onClick={() => onTabChange(tab.id)}
+              className={cn(
+                'flex flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors',
+                activeTab === tab.id
+                  ? 'text-primary-600'
+                  : 'text-gray-400 active:text-gray-600'
+              )}
+            >
+              <tab.icon className="w-5 h-5" />
+              {t(tab.labelKey)}
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
