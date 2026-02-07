@@ -170,15 +170,6 @@ export function EmailPhoneSettings({ profile, onUpdate }: EmailPhoneSettingsProp
           >
             <Pencil className="w-4 h-4" />
           </button>
-          {profile.primaryEmail && (
-            <button
-              onClick={() => setDeleteField('email')}
-              className="p-2.5 rounded-lg text-gray-500 hover:text-red-600 hover:bg-white active:bg-red-50 transition-colors"
-              aria-label={t('security.emailPhone.deleteAriaEmail')}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
         </div>
       </div>
 
