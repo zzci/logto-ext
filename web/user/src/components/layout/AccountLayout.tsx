@@ -22,47 +22,34 @@ export function AccountLayout({ activeTab, onTabChange, children }: AccountLayou
 
   return (
     <div className="min-h-screen flex flex-col pb-16 sm:pb-0">
-      {/* Desktop header — hidden on mobile */}
-      <header className="hidden sm:block sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-2xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <img src="https://gid.io/logo.png" alt="Logo" className="h-7 w-auto" />
-              <h1 className="text-lg font-semibold text-gray-900">{t('layout.accountCenter')}</h1>
-            </div>
-            <nav role="tablist" aria-label={t('layout.accountSettings')} className="flex gap-1 p-1 bg-gray-100 rounded-lg">
-              {tabDefs.map((tab) => (
-                <button
-                  key={tab.id}
-                  role="tab"
-                  aria-selected={activeTab === tab.id}
-                  aria-controls={`tabpanel-${tab.id}`}
-                  id={`tab-${tab.id}`}
-                  onClick={() => onTabChange(tab.id)}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200',
-                    activeTab === tab.id
-                      ? 'bg-white text-primary-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  )}
-                >
-                  <tab.icon className="w-4 h-4" />
-                  {t(tab.labelKey)}
-                </button>
-              ))}
-            </nav>
-          </div>
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        {/* Logo — centered */}
+        <div className="flex justify-center py-4">
+          <img src="https://gid.io/logo.png" alt="Logo" className="h-8 w-auto" />
         </div>
-      </header>
-
-      {/* Mobile header */}
-      <header className="sm:hidden sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="px-4 py-3 flex items-center justify-center gap-2">
-          <img src="https://gid.io/logo.png" alt="Logo" className="h-6 w-auto" />
-          <h1 className="text-lg font-semibold text-gray-900">
-            {tabDefs.find((td) => td.id === activeTab) ? t(tabDefs.find((td) => td.id === activeTab)!.labelKey) : t('layout.accountCenter')}
-          </h1>
-        </div>
+        {/* Desktop tabs */}
+        <nav role="tablist" aria-label={t('layout.accountSettings')} className="hidden sm:flex justify-center gap-1 px-6 pb-3">
+          {tabDefs.map((tab) => (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              aria-controls={`tabpanel-${tab.id}`}
+              id={`tab-${tab.id}`}
+              onClick={() => onTabChange(tab.id)}
+              className={cn(
+                'flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200',
+                activeTab === tab.id
+                  ? 'bg-primary-50 text-primary-600'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              )}
+            >
+              <tab.icon className="w-4 h-4" />
+              {t(tab.labelKey)}
+            </button>
+          ))}
+        </nav>
       </header>
 
       {/* Content */}
