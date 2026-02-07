@@ -27,7 +27,7 @@ app.route("/", extApp);
 // Runtime config for user SPA
 app.get("/user/config.json", (c) => {
   return c.json({
-    logtoEndpoint: env.LOGTO_ENDPOINT,
+    logtoEndpoint: env.LOGTO_SPA_ENDPOINT,
     logtoAppId: env.LOGTO_SPA_APP_ID,
     appUrl: env.APP_URL,
   });
