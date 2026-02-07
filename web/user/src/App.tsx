@@ -52,11 +52,6 @@ function AccountApp() {
     wasAuthenticated.current = true;
   }
 
-  // Only show loading spinner on initial load, not during token refresh
-  if (isLoading && !wasAuthenticated.current) {
-    return <Spinner />;
-  }
-
   // Auto-redirect to login when not authenticated
   useEffect(() => {
     if (!isAuthenticated && !wasAuthenticated.current && !isLoading) {
@@ -65,7 +60,8 @@ function AccountApp() {
     }
   }, [isAuthenticated, isLoading, signIn]);
 
-  if (!isAuthenticated && !wasAuthenticated.current) {
+  // Show spinner during initial load or while redirecting to login
+  if ((isLoading || !isAuthenticated) && !wasAuthenticated.current) {
     return <Spinner />;
   }
 
