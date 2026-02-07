@@ -106,7 +106,7 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
             </button>
           </div>
         )}
-        <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-8 sm:pb-8 safe-area-bottom">{children}</div>
+        <div className="px-5 sm:px-6 pt-5 sm:pt-6 safe-area-bottom" style={{ '--safe-area-min-pb': '2rem' } as React.CSSProperties}>{children}</div>
       </div>
     </div>
   );
