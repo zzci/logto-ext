@@ -53,10 +53,13 @@ function AccountApp() {
   }
 
   // Auto-redirect to login when not authenticated
+  const signingIn = useRef(false);
   useEffect(() => {
-    if (!isAuthenticated && !wasAuthenticated.current && !isLoading) {
+    if (!isAuthenticated && !wasAuthenticated.current && !isLoading && !signingIn.current) {
+      signingIn.current = true;
       const appConfig = getAppConfig();
       void signIn(appConfig.baseUrl + '/user/callback').catch((err) => {
+        signingIn.current = false;
         console.error('[AccountApp] signIn redirect failed:', err);
       });
     }
