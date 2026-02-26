@@ -6,7 +6,7 @@ import env from "./utils/env";
 import app from "./app";
 
 // --- Serve User Account SPA at /user/* ---
-const userDistPath = resolve(import.meta.dir, "../dist/user");
+const userDistPath = resolve(import.meta.dir, "../frontend/dist");
 const userIndexPath = resolve(userDistPath, "index.html");
 
 if (existsSync(userIndexPath)) {
@@ -16,9 +16,9 @@ if (existsSync(userIndexPath)) {
   app.use(
     "/user/*",
     serveStatic({
-      root: "./dist/user",
+      root: "./frontend/dist",
       rewriteRequestPath: (path) => path.replace(/^\/user/, ""),
-    })
+    }),
   );
 
   // SPA fallback: return index.html for any /user path
@@ -27,12 +27,14 @@ if (existsSync(userIndexPath)) {
 
   logger.info("User account SPA enabled at /user/");
 } else {
-  logger.warn("User SPA not found at dist/user/ - run 'bun run build:web' first");
+  logger.warn(
+    "User SPA not found at frontend/dist/ - run 'bun run build:web' first",
+  );
 }
 
 async function run() {
   const server = Bun.serve({
-    port: env.PORT,
+    port: env.API_PORT,
     fetch: app.fetch,
   });
 

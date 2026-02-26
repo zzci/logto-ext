@@ -10,14 +10,24 @@ interface EnvConfig {
   LOGTO_WEBHOOK_SECRET?: string;
   API_KEY?: string;
   PORT: number;
+  API_PORT: number;
 }
 
 function getEnvConfig(): EnvConfig {
-  const required = ["LOGTO_ENDPOINT", "LOGTO_M2M_APP_ID", "LOGTO_M2M_APP_SECRET", "LOGTO_SPA_ENDPOINT", "LOGTO_SPA_APP_ID", "APP_URL"];
+  const required = [
+    "LOGTO_ENDPOINT",
+    "LOGTO_M2M_APP_ID",
+    "LOGTO_M2M_APP_SECRET",
+    "LOGTO_SPA_ENDPOINT",
+    "LOGTO_SPA_APP_ID",
+    "APP_URL",
+  ];
   const missing = required.filter((key) => !process.env[key]);
 
   if (missing.length > 0) {
-    logger.error(`Missing required environment variables: ${missing.join(", ")}`);
+    logger.error(
+      `Missing required environment variables: ${missing.join(", ")}`,
+    );
     process.exit(1);
   }
 
@@ -31,6 +41,7 @@ function getEnvConfig(): EnvConfig {
     LOGTO_WEBHOOK_SECRET: process.env.LOGTO_WEBHOOK_SECRET,
     API_KEY: process.env.API_KEY,
     PORT: parseInt(process.env.PORT || "3000", 10),
+    API_PORT: parseInt(process.env.API_PORT || process.env.PORT || "3000", 10),
   };
 }
 
