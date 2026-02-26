@@ -1,13 +1,14 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { LogtoProvider, useLogto } from '@logto/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { getLogtoConfig, getAppConfig } from '@/lib/config';
-import { CallbackPage, SocialCallbackPage } from '@/pages';
-import { AccountLayout } from '@/components/layout';
-import { AccountCenter } from '@/components/account';
-import { PasswordVerificationModal } from '@/components/account/password-verification-modal';
-import { Spinner } from '@/components/ui';
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { LogtoProvider, useLogto } from "@logto/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { getLogtoConfig, getAppConfig } from "@/lib/config";
+import { CallbackPage, SocialCallbackPage } from "@/pages";
+import { AccountLayout } from "@/components/layout";
+import { AccountCenter } from "@/components/account";
+import { PasswordVerificationModal } from "@/components/account/password-verification-modal";
+import { Button, Spinner } from "@/components/ui";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,13 +19,13 @@ const queryClient = new QueryClient({
   },
 });
 
-type TabId = 'profile' | 'security' | 'connections' | 'settings';
+type TabId = "profile" | "security" | "connections" | "settings";
 
-const validTabs: TabId[] = ['profile', 'security', 'connections', 'settings'];
+const validTabs: TabId[] = ["profile", "security", "connections", "settings"];
 
 function getTabFromHash(): TabId {
   const hash = window.location.hash.slice(1);
-  return validTabs.includes(hash as TabId) ? (hash as TabId) : 'profile';
+  return validTabs.includes(hash as TabId) ? (hash as TabId) : "profile";
 }
 
 function AccountApp() {
@@ -39,8 +40,8 @@ function AccountApp() {
   // Sync tab when user navigates with browser back/forward
   useEffect(() => {
     const onHashChange = () => setActiveTab(getTabFromHash());
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
   // Track if user was ever authenticated in this session.
@@ -52,30 +53,48 @@ function AccountApp() {
     wasAuthenticated.current = true;
   }
 
+  const handleSignOut = () => {
+    const appConfig = getAppConfig();
+    wasAuthenticated.current = false;
+    signOut(appConfig.baseUrl + "/user");
+  };
+
   // Only show loading spinner on initial load, not during token refresh
   if (isLoading && !wasAuthenticated.current) {
     return <Spinner />;
   }
 
-  // Auto-redirect to login when not authenticated
+  // Auto-redirect to login when not authenticated (never was)
   if (!isAuthenticated && !wasAuthenticated.current) {
     const appConfig = getAppConfig();
-    return <RedirectToSignIn signIn={() => signIn(appConfig.baseUrl + '/user/callback')} />;
+    return (
+      <RedirectToSignIn
+        signIn={() => signIn(appConfig.baseUrl + "/user/callback")}
+      />
+    );
   }
 
-  const handleSignOut = () => {
-    const appConfig = getAppConfig();
-    wasAuthenticated.current = false;
-    signOut(appConfig.baseUrl + '/user');
-  };
+  // Session expired: was authenticated but token became invalid
+  if (!isAuthenticated && wasAuthenticated.current) {
+    return <SessionExpired onSignOut={handleSignOut} />;
+  }
 
   return (
-    <AccountLayout
-      activeTab={activeTab}
-      onTabChange={handleTabChange}
-    >
+    <AccountLayout activeTab={activeTab} onTabChange={handleTabChange}>
       <AccountCenter activeTab={activeTab} onSignOut={handleSignOut} />
     </AccountLayout>
+  );
+}
+
+function SessionExpired({ onSignOut }: { onSignOut: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center space-y-4">
+        <p className="text-gray-500 text-sm">{t("errors.accessTokenFailed")}</p>
+        <Button onClick={onSignOut}>{t("auth.logout")}</Button>
+      </div>
+    </div>
   );
 }
 
