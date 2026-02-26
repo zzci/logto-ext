@@ -9,7 +9,6 @@ interface EnvConfig {
   APP_URL: string;
   LOGTO_WEBHOOK_SECRET?: string;
   API_KEY?: string;
-  PORT: number;
   API_PORT: number;
 }
 
@@ -40,7 +39,6 @@ function getEnvConfig(): EnvConfig {
     APP_URL: process.env.APP_URL!,
     LOGTO_WEBHOOK_SECRET: process.env.LOGTO_WEBHOOK_SECRET,
     API_KEY: process.env.API_KEY,
-    PORT: parseInt(process.env.PORT || "3000", 10),
     API_PORT: parseInt(process.env.API_PORT || process.env.PORT || "3000", 10),
   };
 }
