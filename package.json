@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently --kill-others \"bun run dev:api\" \"bun run dev:web\"",
-    "dev:api": "bun run --hot app/index.ts",
+    "dev:api": "PORT=3010 bun run --hot app/index.ts",
     "dev:web": "cd frontend && bun run dev",
     "build:web": "cd frontend && bun run build",
     "build": "bun run build:web",

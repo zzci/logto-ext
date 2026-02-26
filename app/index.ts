@@ -34,7 +34,7 @@ if (existsSync(userIndexPath)) {
 
 async function run() {
   const server = Bun.serve({
-    port: env.API_PORT,
+    port: env.PORT,
     fetch: app.fetch,
   });
 
