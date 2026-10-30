@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import logger from "./utils/logger";
 import env from "./utils/env";
+import { VERSION } from "./utils/version";
 import { requestLogger } from "./middleware/requestLogger";
 import { apiKeyAuth } from "./middleware/apiKey";
 import authRoutes from "./routes/auth";
@@ -14,7 +15,7 @@ const app = new Hono();
 const extApp = new Hono().basePath("/ext");
 extApp.use("*", cors());
 extApp.use("*", requestLogger);
-extApp.get("/health", (c) => c.json({ status: "ok" }));
+extApp.get("/health", (c) => c.json({ status: "ok", version: VERSION }));
 // Apply API key auth to auth and webhook routes
 extApp.use("/auth/*", apiKeyAuth);
 extApp.use("/webhook/*", apiKeyAuth);

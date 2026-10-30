@@ -1,0 +1,67 @@
+name: release
+
+# Builds logto-ext.tar.gz and attaches it to a GitHub Release, where lode picks it up.
+# Cut a release with `gh release create vX.Y.Z` (or the UI); this runs on publish.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to rebuild assets for, e.g. v1.2.0"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+  ASSET: logto-ext.tar.gz
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HAS_SIGNING_KEY: ${{ secrets.LODE_SIGNING_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile && (cd frontend && bun install --frozen-lockfile)
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      # lode binds the signature to the tag minus its leading `v`.
+      - name: Package
+        run: bun run package --version "${TAG#v}"
+
+      # Optional: set the LODE_SIGNING_KEY secret (from `lode-cli keygen`) to sign assets.
+      - name: Sign
+        if: env.HAS_SIGNING_KEY == 'true'
+        env:
+          LODE_SIGNING_KEY: ${{ secrets.LODE_SIGNING_KEY }}
+          LODE_VERSION: v0.4.0
+          LODE_SHA256: b25e2340cdafd4b04fd2974cafa3ce723cbacbf5d32ebd3d75c9f6de5c141910
+        run: |
+          set -euo pipefail
+          curl -fsSLo lode.tar.gz "https://github.com/bkhq/lode/releases/download/$LODE_VERSION/lode-linux-x64.tar.gz"
+          echo "$LODE_SHA256  lode.tar.gz" | sha256sum -c -
+          tar -xzf lode.tar.gz lode lode-cli
+          ./lode-cli sign "dist/$ASSET" --app logto-ext --version "${TAG#v}" --key-env LODE_SIGNING_KEY \
+            | awk '/^sig:/ {print $2}' > "dist/$ASSET.sig"
+          test -s "dist/$ASSET.sig"
+
+      - name: Upload assets
+        run: |
+          set -euo pipefail
+          files=("dist/$ASSET" dist/checksums.txt lode.toml)
+          [ -s "dist/$ASSET.sig" ] && files+=("dist/$ASSET.sig")
+          gh release upload "$TAG" "${files[@]}" --clobber

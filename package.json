@@ -12,7 +12,9 @@
     "build": "bun run build:web",
     "start": "bun run app/index.ts",
     "preview": "cd frontend && bun run preview",
-    "install:all": "bun install && cd frontend && bun install"
+    "install:all": "bun install && cd frontend && bun install",
+    "package": "bun scripts/package.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "consola": "^3.4.2",

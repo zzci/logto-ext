@@ -1,0 +1,62 @@
+# logto-ext under lode — operator config (how lode fetches, verifies and runs the app).
+#
+# Docker: mount it at /srv/lode/lode.toml in the docker.io/bkhq/lode image.
+# Bare metal: download it into the install dir and run `lode --dir <that dir>`.
+#
+# App settings (LOGTO_*, APP_URL, API_KEY, ...) go in the host/container env or in the
+# [env] table below — lode passes the host env through. A `.env` file is NOT read:
+# lode runs the app with its cwd set to the per-version directory.
+#
+# Precedence: CLI > env (LODE_*) > lode.toml > defaults.
+
+[global]
+app = "logto-ext"
+dir = "/srv/lode"   # lode.toml + versions/ + state.json + runtime/; must be persistent
+
+[update]
+github         = "zzci/logto-ext"
+asset          = "logto-ext.tar.gz"  # exact release asset filename — do not add a version
+channel        = "stable"            # stable = /releases/latest
+policy         = "auto"              # off | check | auto
+check_interval = 300
+keep_versions  = 3
+
+[trust]
+# "auto": verify when a trusted key is configured, otherwise install with sha256 check
+# only. Once releases are signed (LODE_SIGNING_KEY secret in CI), add the public key
+# from `lode-cli keygen` and switch to "enforce":
+#   trusted_keys = ["<key_id>:<base64-pubkey>"]
+require_signature = "auto"
+
+[command]
+run  = "bun index.js"
+exec = "bun"
+
+# Fetches bun when it is not on PATH. Runtime
+# downloads are not signature-verified — pin the version.
+[runtime]
+runtime  = "bun"
+download = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.2/bun-linux-x64.zip"
+version  = "1.4.2"
+
+[supervise]
+readiness     = "state"   # the app reports ready once it serves
+ready_timeout = 30
+health_grace  = 10        # a version that dies within this window is rolled back
+stop_timeout  = 10
+restart       = "on-failure"
+
+# Defaults for the app; a host env var of the same name wins.
+[env]
+NODE_ENV  = "production"
+PORT      = "3000"
+LOG_LEVEL = "info"
+# LOGTO_ENDPOINT       = "https://auth.example.com"
+# LOGTO_M2M_APP_ID     = ""
+# LOGTO_M2M_APP_SECRET = ""
+# LOGTO_M2M_RESOURCE   = "https://default.logto.app/api"  # Logto Cloud: https://<tenant>.logto.app/api
+# LOGTO_SPA_ENDPOINT   = "https://auth.example.com"
+# LOGTO_SPA_APP_ID     = ""
+# APP_URL              = "https://ext.example.com"
+# LOGTO_WEBHOOK_SECRET = ""
+# API_KEY              = ""

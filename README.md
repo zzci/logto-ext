@@ -1,135 +1,109 @@
-# Logto Authentication Service
+# logto-ext
 
-使用 Logto Management API 实现用户登录验证的 Bun 服务。
+Extension service for [Logto](https://logto.io): a user account center SPA and a small
+extension API (credential check, webhook receiver), built with Bun + Hono.
 
-## 功能
+It is delivered the [lode](https://github.com/bkhq/lode) way: the app ships as a GitHub
+Release asset (`logto-ext.tar.gz`), and lode downloads, verifies, runs, hot-updates and
+rolls it back. There is no app-specific Docker image.
 
-- 支持用户名或邮箱登录
-- 通过 Logto Management API 验证用户密码
-- 自动检测输入是邮箱还是用户名
+## Endpoints
 
-## 前置要求
+| Path | Description |
+|---|---|
+| `/user/` | User account center (profile, password, email/phone, MFA, linked accounts) |
+| `GET /ext/health` | `{ "status": "ok", "version": "x.y.z" }` |
+| `POST /ext/auth/login` | Verify `{ "username", "password" }` (username or email) against Logto |
+| `POST /ext/webhook` | Logto webhook receiver |
 
-1. Logto 实例（Cloud 或自托管）
-2. 在 Logto Console 中创建 Machine-to-Machine (M2M) 应用
-3. 为 M2M 应用分配 Management API 访问权限
-
-## 安装
-
-```bash
-bun install
-```
-
-## 配置
-
-复制 `.env.example` 为 `.env` 并填写配置：
+`/ext/auth/*` and `/ext/webhook/*` require `X-API-Key: <API_KEY>` (or
+`Authorization: Bearer <API_KEY>`) when `API_KEY` is set. When `LOGTO_WEBHOOK_SECRET` is
+set, webhooks must carry a valid `logto-signature-sha-256` HMAC.
 
 ```bash
-cp .env.example .env
-```
-
-配置项说明：
-
-| 变量 | 说明 |
-|------|------|
-| `LOGTO_ENDPOINT` | Logto 租户端点，如 `https://your-tenant.logto.app` |
-| `LOGTO_M2M_APP_ID` | M2M 应用的 App ID |
-| `LOGTO_M2M_APP_SECRET` | M2M 应用的 App Secret |
-| `PORT` | 服务端口，默认 3000 |
-
-### 在 Logto Console 中创建 M2M 应用
-
-1. 登录 Logto Console
-2. 进入 Applications
-3. 点击 "Create application"
-4. 选择 "Machine-to-machine"
-5. 在 API resources 中勾选 "Logto Management API"
-6. 复制 App ID 和 App Secret
-
-## 运行
-
-```bash
-# 开发模式（热重载）
-bun dev
-
-# 生产模式
-bun start
-```
-
-## API 接口
-
-### POST /login
-
-验证用户凭证。
-
-**请求体：**
-
-```json
-{
-  "username": "用户名或邮箱",
-  "password": "密码"
-}
-```
-
-**响应：**
-
-成功 (200):
-```json
-{
-  "success": true,
-  "message": "Login successful",
-  "userId": "user-id"
-}
-```
-
-失败 - 缺少参数 (400):
-```json
-{
-  "success": false,
-  "message": "Missing username or password"
-}
-```
-
-失败 - 凭证无效 (401):
-```json
-{
-  "success": false,
-  "message": "Invalid credentials"
-}
-```
-
-### GET /health
-
-健康检查接口。
-
-**响应 (200):**
-```json
-{
-  "status": "ok"
-}
-```
-
-## 示例
-
-```bash
-# 使用用户名登录
-curl -X POST http://localhost:3000/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "testuser", "password": "password123"}'
-
-# 使用邮箱登录
-curl -X POST http://localhost:3000/login \
-  -H "Content-Type: application/json" \
+curl -X POST https://ext.example.com/ext/auth/login \
+  -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
   -d '{"username": "test@example.com", "password": "password123"}'
+# 200 {"success":true,"message":"Login successful","userId":"..."}
+# 400 missing/invalid body · 401 invalid credentials or API key
 ```
 
-## 工作原理
+## Configuration
 
-1. 接收包含 `username` 和 `password` 的 POST 请求
-2. 检测 `username` 是邮箱格式还是普通用户名
-3. 使用 Logto Management API 搜索用户：
-   - 邮箱：`GET /api/users?search.primaryEmail={email}&mode.primaryEmail=exact`
-   - 用户名：`GET /api/users?search.username={username}&mode.username=exact`
-4. 如果找到用户，调用密码验证 API：
-   - `POST /api/users/{userId}/password/verify`
-5. 根据验证结果返回相应的 HTTP 状态码
+| Variable | Required | Description |
+|---|---|---|
+| `LOGTO_ENDPOINT` | yes | Logto endpoint for the Management API, e.g. `https://auth.example.com` |
+| `LOGTO_M2M_APP_ID` / `LOGTO_M2M_APP_SECRET` | yes | Machine-to-machine app with Management API access |
+| `LOGTO_M2M_RESOURCE` | no | Management API resource. Default `https://default.logto.app/api` (self-hosted); Logto Cloud: `https://<tenant>.logto.app/api` |
+| `LOGTO_SPA_ENDPOINT` / `LOGTO_SPA_APP_ID` | yes | Logto endpoint and SPA app used by the account center |
+| `APP_URL` | yes | Public base URL of this service (sign-in redirect is `${APP_URL}/user/callback`) |
+| `API_KEY` | no | Protects `/ext/auth` and `/ext/webhook` |
+| `LOGTO_WEBHOOK_SECRET` | no | Logto webhook signing key |
+| `PORT` | no | Default `3000` |
+| `LOG_LEVEL` | no | `debug` / `info` / `warn` / `error`, default `info` |
+
+**M2M app:** Logto Console → Applications → Create → Machine-to-machine → assign the
+*Logto Management API* role. **SPA app:** Create → Single page app, add
+`${APP_URL}/user/callback` as a redirect URI and `${APP_URL}/user` as a post sign-out URI.
+
+## Deploy
+
+### Docker
+
+Run the generic lode image with [`lode.toml`](lode.toml):
+
+```bash
+curl -fsSL https://github.com/zzci/logto-ext/releases/latest/download/lode.toml -o lode.toml
+docker run -d --name logto-ext -p 3000:3000 \
+  -v logto-ext:/srv/lode \
+  -v "$PWD/lode.toml:/srv/lode/lode.toml:ro" \
+  --env-file .env \
+  docker.io/bkhq/lode:latest
+```
+
+On first start lode downloads bun and the latest release into the `/srv/lode` volume,
+then checks for new releases every 5 minutes and applies them (rolling back if a version
+fails to come up). Edit `lode.toml` to change the update policy, pin a version or enforce
+signatures.
+
+```bash
+docker exec logto-ext lode-cli status     # current / available version
+docker exec logto-ext lode-cli update     # update now
+docker exec logto-ext lode-cli rollback   # back to the previous version
+```
+
+### Bare metal
+
+```bash
+curl -fsSL https://github.com/bkhq/lode/releases/latest/download/lode-linux-x64.tar.gz \
+  | sudo tar -xz -C /usr/local/bin lode lode-cli
+sudo mkdir -p /srv/lode && sudo chown "$(id -un)" /srv/lode
+curl -fsSL https://github.com/zzci/logto-ext/releases/latest/download/lode.toml -o /srv/lode/lode.toml
+# fill in the [env] section (or export the variables), then:
+lode --dir /srv/lode
+```
+
+lode fetches bun itself if it is not on `PATH`. Note that a `.env` file is not read under
+lode — set configuration in the environment or in `lode.toml` `[env]`.
+
+## Development
+
+```bash
+bun run install:all
+cp .env.example .env
+bun dev            # API on :3010 (hot reload) + Vite on :3000 (proxies /ext and /user/config.json)
+bun run typecheck
+```
+
+## Release
+
+```bash
+gh release create v1.2.0 --generate-notes
+```
+
+[`release.yml`](.github/workflows/release.yml) runs on publish: it typechecks, runs
+`bun run package` (builds the SPA, bundles the server into a single `index.js`, packs
+`dist/logto-ext.tar.gz`) and uploads the asset with `checksums.txt` and `lode.toml`. If the
+`LODE_SIGNING_KEY` secret is set (from `lode-cli keygen`), the asset is signed and a
+`.sig` sidecar is uploaded; add the printed `trusted_keys` entry to `lode.toml` and set
+`require_signature = "enforce"`.
