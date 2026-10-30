@@ -56,7 +56,7 @@ class LogtoService {
     }
 
     const tokenEndpoint = `${this.endpoint}/oidc/token`;
-    const resource = "https://default.logto.app/api";
+    const resource = env.LOGTO_M2M_RESOURCE;
 
     logger.debug("Fetching new access token from Logto");
 

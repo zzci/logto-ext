@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { createHmac, timingSafeEqual } from "crypto";
 import logger from "../utils/logger";
 import env from "../utils/env";
 
@@ -25,18 +26,13 @@ interface WebhookPayload {
   user?: Record<string, unknown>;
 }
 
-// Verify webhook signature
-function verifySignature(payload: string, signature: string | null, secret: string): boolean {
+// Logto signs the raw body with HMAC-SHA256 (hex) using the webhook signing key
+function verifySignature(payload: string, signature: string | undefined, secret: string): boolean {
   if (!signature) return false;
 
-  const encoder = new TextEncoder();
-  const key = encoder.encode(secret);
-  const data = encoder.encode(payload);
-
-  // Use Web Crypto API for HMAC verification
-  // For now, we'll implement a simple check - in production use proper HMAC
-  // This is a placeholder for proper signature verification
-  return true; // TODO: Implement proper HMAC-SHA256 verification
+  const expected = createHmac("sha256", secret).update(payload).digest();
+  const actual = Buffer.from(signature, "hex");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
 webhook.post("/", async (c) => {
@@ -52,7 +48,12 @@ webhook.post("/", async (c) => {
       }
     }
 
-    const payload: WebhookPayload = JSON.parse(rawBody);
+    let payload: WebhookPayload;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
     logger.info(`Webhook received: ${payload.event}`, { hookId: payload.hookId });
 
     // Handle different event types

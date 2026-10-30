@@ -6,10 +6,10 @@ const auth = new Hono();
 
 auth.post("/login", async (c) => {
   try {
-    const body = await c.req.json();
-    const { username, password } = body;
+    const body = await c.req.json().catch(() => null);
+    const { username, password } = body ?? {};
 
-    if (!username || !password) {
+    if (typeof username !== "string" || typeof password !== "string" || !username || !password) {
       return c.json({ success: false, message: "Missing username or password" }, 400);
     }
 

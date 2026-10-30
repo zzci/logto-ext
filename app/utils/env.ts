@@ -4,6 +4,7 @@ interface EnvConfig {
   LOGTO_ENDPOINT: string;
   LOGTO_M2M_APP_ID: string;
   LOGTO_M2M_APP_SECRET: string;
+  LOGTO_M2M_RESOURCE: string;
   LOGTO_SPA_ENDPOINT: string;
   LOGTO_SPA_APP_ID: string;
   APP_URL: string;
@@ -34,6 +35,8 @@ function getEnvConfig(): EnvConfig {
     LOGTO_ENDPOINT: process.env.LOGTO_ENDPOINT!,
     LOGTO_M2M_APP_ID: process.env.LOGTO_M2M_APP_ID!,
     LOGTO_M2M_APP_SECRET: process.env.LOGTO_M2M_APP_SECRET!,
+    LOGTO_M2M_RESOURCE:
+      process.env.LOGTO_M2M_RESOURCE || "https://default.logto.app/api",
     LOGTO_SPA_ENDPOINT: process.env.LOGTO_SPA_ENDPOINT!,
     LOGTO_SPA_APP_ID: process.env.LOGTO_SPA_APP_ID!,
     APP_URL: process.env.APP_URL!,
