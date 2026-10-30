@@ -251,6 +251,8 @@
     "passwordRejected": "Password does not meet security requirements",
     "authFailed": "Authentication failed. Please sign in again",
     "forbidden": "You do not have permission to perform this action",
-    "invalidData": "Invalid request data"
+    "invalidData": "Invalid request data",
+    "accountCenterDisabled": "This action is disabled in Logto Account Center settings",
+    "configLoadFailed": "Failed to load configuration. Please refresh the page"
   }
 }

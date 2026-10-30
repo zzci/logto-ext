@@ -1,4 +1,4 @@
-import { forwardRef, type SelectHTMLAttributes } from 'react';
+import { forwardRef, useId, type SelectHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
@@ -9,7 +9,8 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ className, label, error, hint, id, children, ...props }, ref) => {
-    const selectId = id || props.name;
+    const autoId = useId();
+    const selectId = id || props.name || autoId;
 
     return (
       <div className="w-full">

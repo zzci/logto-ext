@@ -12,10 +12,21 @@ i18n.on('languageChanged', (lng) => {
   document.documentElement.lang = lng;
 });
 
-loadConfig().then(() => {
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  )
-})
+const root = createRoot(document.getElementById('root')!)
+
+loadConfig().then(
+  () => {
+    root.render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    )
+  },
+  () => {
+    root.render(
+      <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">
+        {i18n.t('errors.configLoadFailed')}
+      </div>,
+    )
+  },
+)

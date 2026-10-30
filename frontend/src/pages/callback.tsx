@@ -7,7 +7,7 @@ export function CallbackPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { isLoading, error } = useHandleSignInCallback(() => {
-    navigate('/profile', { replace: true });
+    navigate('/', { replace: true });
   });
 
   useEffect(() => {

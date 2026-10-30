@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Input, Select, Avatar, Alert } from '@/components/ui';
 import { useAccount } from '@/hooks';
-import type { UserProfile } from '@/types';
+import type { UserProfile, UpdateProfileRequest, UpdateExtendedProfileRequest } from '@/types';
 
 interface ProfileFormProps {
   profile: UserProfile;
@@ -52,19 +52,19 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
     isSubmittingRef.current = true;
     try {
-      await updateProfile({
-        name: formData.name || undefined,
-        avatar: formData.avatar || undefined,
-      });
+      // Send only changed fields: Logto rejects fields not editable in Account Center,
+      // and merges `profile`, so a cleared field must be sent as "" to take effect.
+      const basic: UpdateProfileRequest = {};
+      if (formData.name !== (profile.name || '')) basic.name = formData.name || null;
+      if (formData.avatar !== (profile.avatar || '')) basic.avatar = formData.avatar || null;
 
-      await updateExtendedProfile({
-        nickname: formData.nickname || undefined,
-        givenName: formData.givenName || undefined,
-        familyName: formData.familyName || undefined,
-        website: formData.website || undefined,
-        gender: formData.gender || undefined,
-        birthdate: formData.birthdate || undefined,
-      });
+      const extended: UpdateExtendedProfileRequest = {};
+      for (const key of ['nickname', 'givenName', 'familyName', 'website', 'gender', 'birthdate'] as const) {
+        if (formData[key] !== (profile.profile?.[key] || '')) extended[key] = formData[key];
+      }
+
+      if (Object.keys(basic).length > 0) await updateProfile(basic);
+      if (Object.keys(extended).length > 0) await updateExtendedProfile(extended);
 
       setSuccess(t('profile.updateSuccess'));
     } catch (err) {

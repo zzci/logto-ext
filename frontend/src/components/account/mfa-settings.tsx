@@ -1,12 +1,23 @@
 import { useState } from 'react';
+import QRCode from 'qrcode';
 import { useTranslation } from 'react-i18next';
 import { Smartphone, Trash2, Plus } from 'lucide-react';
 import { Button, Alert, Card, CardHeader, CardTitle, CardContent, Input, Modal } from '@/components/ui';
 import { useVerificationStore } from '@/stores';
 import { useMfa } from '@/hooks';
 import { formatDate } from '@/lib/utils';
+import { getConfig } from '@/lib/config';
+import type { UserProfile } from '@/types';
 
-export function MfaSettings() {
+// Logto only returns the secret; build the standard otpauth URI for authenticator apps
+function buildOtpAuthUri(secret: string, profile: UserProfile): string {
+  const issuer = new URL(getConfig().logtoEndpoint).hostname;
+  const account = profile.primaryEmail || profile.username || profile.primaryPhone || profile.id;
+  const label = encodeURIComponent(`${issuer}:${account}`);
+  return `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent(issuer)}`;
+}
+
+export function MfaSettings({ profile }: { profile: UserProfile }) {
   const { t } = useTranslation();
   const { mfaVerifications, isLoading, createTotp, bindTotp, deleteMfa } = useMfa();
   const verify = useVerificationStore((s) => s.verify);
@@ -29,12 +40,9 @@ export function MfaSettings() {
     setSuccess(null);
     try {
       const recordId = await verify({ description: t('security.mfa.addVerify') });
-      const result = await createTotp(recordId);
-      setTotpSetup({
-        secret: result.secret,
-        qrCode: result.secretQrCode,
-        recordId,
-      });
+      const { secret } = await createTotp(recordId);
+      const qrCode = await QRCode.toDataURL(buildOtpAuthUri(secret, profile), { margin: 1, width: 384 });
+      setTotpSetup({ secret, qrCode, recordId });
     } catch (err) {
       if (err instanceof Error && err.message !== 'cancelled') {
         setError(err.message);

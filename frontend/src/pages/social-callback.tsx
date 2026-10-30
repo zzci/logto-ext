@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '@/components/ui';
@@ -10,13 +10,17 @@ export function SocialCallbackPage() {
   const [searchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
+  // The authorization code is single-use; don't process it twice (StrictMode double effect)
+  const handled = useRef(false);
 
   useEffect(() => {
+    if (handled.current) return;
+    handled.current = true;
+
     async function handleCallback() {
       try {
         // Get stored state
         const storedState = sessionStorage.getItem('social_link_state');
-        const connectorId = sessionStorage.getItem('social_link_connector');
         const passwordVerificationId = sessionStorage.getItem('social_link_verification');
         const socialVerificationId = sessionStorage.getItem('social_link_verification_id');
 
@@ -29,7 +33,7 @@ export function SocialCallbackPage() {
           throw new Error('State mismatch - possible CSRF attack');
         }
 
-        if (!connectorId || !socialVerificationId || !passwordVerificationId) {
+        if (!socialVerificationId || !passwordVerificationId) {
           throw new Error('Missing session data');
         }
 
@@ -38,17 +42,17 @@ export function SocialCallbackPage() {
           throw new Error(errorDesc || 'Authorization failed');
         }
 
-        // Build callback data from all search params
-        const callbackData: Record<string, string> = {};
+        // Pass all callback params (code, state, ...) plus the redirect URI to the connector
+        const connectorData: Record<string, string> = {
+          redirectUri: `${window.location.origin}/user/callback/social`,
+        };
         searchParams.forEach((value, key) => {
-          callbackData[key] = value;
+          connectorData[key] = value;
         });
 
-        // Verify social identity using social verification ID
         const verifyResult = await accountApi.verifySocialIdentity(
-          connectorId,
           socialVerificationId,
-          callbackData
+          connectorData
         );
 
         // Bind social identity using password verification as identity proof
@@ -59,7 +63,6 @@ export function SocialCallbackPage() {
 
         // Clean up session storage
         sessionStorage.removeItem('social_link_state');
-        sessionStorage.removeItem('social_link_connector');
         sessionStorage.removeItem('social_link_verification');
         sessionStorage.removeItem('social_link_verification_id');
 
@@ -67,7 +70,7 @@ export function SocialCallbackPage() {
 
         // Redirect to connections page
         setTimeout(() => {
-          navigate('/connections', { replace: true });
+          navigate({ pathname: '/', hash: 'connections' }, { replace: true });
         }, 1500);
       } catch (err) {
         console.error('Social callback error:', err);
@@ -76,7 +79,6 @@ export function SocialCallbackPage() {
 
         // Clean up session storage on error too
         sessionStorage.removeItem('social_link_state');
-        sessionStorage.removeItem('social_link_connector');
         sessionStorage.removeItem('social_link_verification');
         sessionStorage.removeItem('social_link_verification_id');
       }

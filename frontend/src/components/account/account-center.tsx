@@ -127,7 +127,7 @@ export function AccountCenter({ activeTab, onSignOut }: AccountCenterProps) {
             title={t('security.mfa.title')}
             description={t('security.mfa.description')}
           >
-            <MfaSettings />
+            <MfaSettings profile={profile} />
           </CollapsibleCard>
         </div>
       )}

@@ -65,9 +65,9 @@ export interface SocialConnector {
 
 // API Request Types
 export interface UpdateProfileRequest {
-  username?: string;
-  name?: string;
-  avatar?: string;
+  username?: string | null;
+  name?: string | null;
+  avatar?: string | null;
   customData?: Record<string, unknown>;
 }
 
@@ -120,6 +120,5 @@ export interface AddMfaRequest {
 
 export interface TotpSecretResponse {
   secret: string;
-  secretQrCode: string;
 }
 

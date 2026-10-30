@@ -90,7 +90,7 @@ export function EmailPhoneSettings({ profile, onUpdate }: EmailPhoneSettingsProp
     setIsLoading(true);
     try {
       const result = await accountApi.sendVerificationCode(editingField, newValue);
-      setCodeVerificationId(result.verificationId);
+      setCodeVerificationId(result.verificationRecordId);
       setCodeSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('security.emailPhone.sendCodeFailed'));

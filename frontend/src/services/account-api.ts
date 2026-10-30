@@ -41,6 +41,7 @@ class AccountApiService {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
+      'Accept-Language': i18n.language,
       ...options.headers,
     };
 
@@ -62,8 +63,13 @@ class AccountApiService {
       // Translate common Logto error codes
       if (errorCode === 'session.invalid_credentials' || errorCode.includes('invalid_credentials')) {
         message = i18n.t('errors.wrongPassword');
-      } else if (errorCode === 'session.verification_session_not_found') {
+      } else if (
+        errorCode === 'verification_record.not_found' ||
+        errorCode === 'verification_record.permission_denied'
+      ) {
         message = i18n.t('errors.verificationExpired');
+      } else if (errorCode.startsWith('account_center.')) {
+        message = i18n.t('errors.accountCenterDisabled');
       } else if (errorCode === 'session.verification_failed') {
         message = i18n.t('errors.verificationFailed');
       } else if (errorCode.includes('password.rejected')) {
@@ -116,8 +122,8 @@ class AccountApiService {
   async sendVerificationCode(
     type: 'email' | 'phone',
     value: string
-  ): Promise<{ verificationId: string }> {
-    return this.request<{ verificationId: string }>('/api/verifications/verification-code', {
+  ): Promise<VerificationResponse> {
+    return this.request<VerificationResponse>('/api/verifications/verification-code', {
       method: 'POST',
       body: JSON.stringify({
         identifier: { type, value },
@@ -254,7 +260,7 @@ class AccountApiService {
     verificationRecordId: string
   ): Promise<void> {
     return this.request<void>(
-      `/api/my-account/mfa-verifications/${id}`,
+      `/api/my-account/mfa-verifications/${id}/name`,
       {
         method: 'PATCH',
         body: JSON.stringify({ name }),
@@ -265,17 +271,12 @@ class AccountApiService {
 
   // Identity endpoints (social connections)
   async verifySocialIdentity(
-    connectorId: string,
-    verificationId: string,
-    callbackData: Record<string, string>
-  ): Promise<VerificationResponse> {
-    return this.request<VerificationResponse>('/api/verifications/social/verify', {
+    verificationRecordId: string,
+    connectorData: Record<string, string>
+  ): Promise<{ verificationRecordId: string }> {
+    return this.request<{ verificationRecordId: string }>('/api/verifications/social/verify', {
       method: 'POST',
-      body: JSON.stringify({
-        connectorId,
-        verificationId,
-        callbackData,
-      }),
+      body: JSON.stringify({ verificationRecordId, connectorData }),
     });
   }
 
@@ -320,8 +321,8 @@ class AccountApiService {
     connectorId: string,
     redirectUri: string,
     state: string
-  ): Promise<{ authorizationUri: string; verificationId: string }> {
-    return this.request<{ authorizationUri: string; verificationId: string }>(
+  ): Promise<{ authorizationUri: string; verificationRecordId: string }> {
+    return this.request<{ authorizationUri: string; verificationRecordId: string }>(
       '/api/verifications/social',
       {
         method: 'POST',

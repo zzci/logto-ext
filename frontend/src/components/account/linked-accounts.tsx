@@ -87,11 +87,10 @@ export function LinkedAccounts({ profile, onUpdate }: LinkedAccountsProps) {
       const redirectUri = `${window.location.origin}/user/callback/social`;
 
       sessionStorage.setItem('social_link_state', state);
-      sessionStorage.setItem('social_link_connector', connector.id);
       sessionStorage.setItem('social_link_verification', recordId);
 
       const result = await accountApi.startSocialLinking(connector.id, redirectUri, state);
-      sessionStorage.setItem('social_link_verification_id', result.verificationId);
+      sessionStorage.setItem('social_link_verification_id', result.verificationRecordId);
 
       window.location.href = result.authorizationUri;
     } catch (err) {

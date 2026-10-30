@@ -251,6 +251,8 @@
     "passwordRejected": "密码不符合安全要求",
     "authFailed": "认证失败，请重新登录",
     "forbidden": "没有权限执行此操作",
-    "invalidData": "请求数据无效"
+    "invalidData": "请求数据无效",
+    "accountCenterDisabled": "该操作未在 Logto 账户中心设置中启用",
+    "configLoadFailed": "加载配置失败，请刷新页面"
   }
 }
